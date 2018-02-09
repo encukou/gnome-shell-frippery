@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Колькасць радкоў пераключальніка прастор працы"
+
+msgid "Move to Workspace Left"
+msgstr "Перамясціць на прастору працы злева"
+
+msgid "Move to Workspace Right"
+msgstr "Перамясціць на прастору працы справа"
+
+msgid "Move to Another Workspace"
+msgstr "Перамясціць на іншую прастору працы"
+
+msgid "Unminimize"
+msgstr "Аднавіць мінімалізававанае акно"

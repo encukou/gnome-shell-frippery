@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Rónna sa mhalartóir spásanna oibre"
+
+msgid "Move to Workspace Left"
+msgstr "Bog go Spás Oibre ar Chlé"
+
+msgid "Move to Workspace Right"
+msgstr "Bog go Spás Oibre ar Dheis"
+
+msgid "Move to Another Workspace"
+msgstr "Bog go Spás Oibre Eile"
+
+msgid "Unminimize"
+msgstr "Dí-íoslaghdaigh"

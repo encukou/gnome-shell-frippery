@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Masa üstü dəyişdiricisindəki sətir"
+
+msgid "Move to Workspace Left"
+msgstr "Soldakı İş Sahəsinə Daşı"
+
+msgid "Move to Workspace Right"
+msgstr "Sağdakı İş Sahəsinə Daşı"
+
+msgid "Move to Another Workspace"
+msgstr "Başqa İş Sahəsinə Daşı"
+
+msgid "Unminimize"
+msgstr "Böyüt"

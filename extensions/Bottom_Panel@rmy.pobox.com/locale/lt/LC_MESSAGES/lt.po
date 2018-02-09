@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Eilučių skaičius darbalaukių keitiklyje"
+
+msgid "Number of Workspaces"
+msgstr "Darbalaukių skaičius"
+
+msgid "Move to Workspace Left"
+msgstr "Perkelti langą į kairįjį darbalaukį"
+
+msgid "Move to Workspace Right"
+msgstr "Perkelti langą į dešinįjį darbalaukį"
+
+msgid "Move to Another Workspace"
+msgstr "Perkelti langą į kitą darbalaukį"
+
+msgid "Unminimize"
+msgstr "Grąžinti iš sumažinimo"

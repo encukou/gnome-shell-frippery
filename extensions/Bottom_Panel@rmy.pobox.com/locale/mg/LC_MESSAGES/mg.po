@@ -1,0 +1,19 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Andalana anatin'ny mpampisafidy workspace"
+
+msgid "Move to Workspace Left"
+msgstr "Afindrao eo amin'ny workspace avia"
+
+msgid "Move to Workspace Right"
+msgstr "Afindrao eo amin'ny workspace havanana"
+
+msgid "Move to Another Workspace"
+msgstr "Afindrao any amina workspace hafa"

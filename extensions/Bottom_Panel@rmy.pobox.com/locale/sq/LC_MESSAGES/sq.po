@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Rreshta tek zgjedhësi i hapësirës së punës"
+
+msgid "Move to Workspace Left"
+msgstr "Zhvendose tek hapësira e punës majtas"
+
+msgid "Move to Workspace Right"
+msgstr "Zhvendose tek hapësira e punës djathtas"
+
+msgid "Move to Another Workspace"
+msgstr "Zhvendose tek një tjetër hapësirë pune"
+
+msgid "Unminimize"
+msgstr "Ç'minimizo"

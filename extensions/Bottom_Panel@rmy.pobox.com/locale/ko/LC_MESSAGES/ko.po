@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "작업 공간 바꾸기의 줄 개수"
+
+msgid "Number of Workspaces"
+msgstr "작업 공간 수"
+
+msgid "Move to Workspace Left"
+msgstr "왼쪽 작업 공간으로 옮기기"
+
+msgid "Move to Workspace Right"
+msgstr "오른쪽 작업 공간으로 옮기기"
+
+msgid "Move to Another Workspace"
+msgstr "다른 작업 공간으로 옮기기(W)"
+
+msgid "Unminimize"
+msgstr "최소화 취소"

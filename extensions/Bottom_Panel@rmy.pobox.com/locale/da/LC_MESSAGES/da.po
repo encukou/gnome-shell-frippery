@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Rækker i arbejdsområdeskifter"
+
+msgid "Number of Workspaces"
+msgstr "Antal af arbejdsområder"
+
+msgid "Move to Workspace Left"
+msgstr "Flyt til arbejdsområde til venstre"
+
+msgid "Move to Workspace Right"
+msgstr "Flyt til arbejdsområde til højre"
+
+msgid "Move to Another Workspace"
+msgstr "Flyt til andet arbejdsområde"
+
+msgid "Unminimize"
+msgstr "Gendan"

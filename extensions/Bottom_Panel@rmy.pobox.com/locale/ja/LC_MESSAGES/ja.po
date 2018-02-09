@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "ワークスペース切り替え器の桁数"
+
+msgid "Number of Workspaces"
+msgstr "ワークスペース数"
+
+msgid "Move to Workspace Left"
+msgstr "左側のワークスペースへ移動する"
+
+msgid "Move to Workspace Right"
+msgstr "右側のワークスペースへ移動する"
+
+msgid "Move to Another Workspace"
+msgstr "別のワークスペースへ移動する(W)"
+
+msgid "Unminimize"
+msgstr "最小化解除"

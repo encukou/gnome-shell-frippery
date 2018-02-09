@@ -1,0 +1,15 @@
+<schemalist gettext-domain="frippery-bottom-panel">
+<schema id="org.frippery.bottom-panel" path="/org/frippery/bottom-panel/">
+    <key name="num-rows" type="i">
+      <range min="1" max="5"/>
+      <default>1</default>
+      <summary>Number of rows of workspaces</summary>
+      <description>Number of rows of workspaces.  May only be between 1 and 5.</description>
+    </key>
+    <key name="show-panel" type="ab">
+      <default>[]</default>
+      <summary>Show panel on workspace</summary>
+      <description>If not false the panel will be shown on the indexed workspace.</description>
+    </key>
+</schema>
+</schemalist>

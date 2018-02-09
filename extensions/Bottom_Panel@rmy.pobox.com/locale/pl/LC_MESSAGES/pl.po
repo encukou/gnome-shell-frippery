@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Liczba wierszy w przełączniku obszarów roboczych"
+
+msgid "Number of Workspaces"
+msgstr "Liczba obszarów roboczych"
+
+msgid "Move to Workspace Left"
+msgstr "Przenieś na lewy obszar roboczy"
+
+msgid "Move to Workspace Right"
+msgstr "Przenieś na prawy obszar roboczy"
+
+msgid "Move to Another Workspace"
+msgstr "Przeniesienie na inny obszar roboczy"
+
+msgid "Unminimize"
+msgstr "Cofnij minimalizację"

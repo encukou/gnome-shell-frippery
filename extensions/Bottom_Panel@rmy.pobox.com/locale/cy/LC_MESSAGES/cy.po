@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Rhesi yn y cyfnewidydd gweithfannau"
+
+msgid "Move to Workspace Left"
+msgstr "Symud at y Weithfan i'r Chwith"
+
+msgid "Move to Workspace Right"
+msgstr "Symud at y Weithfan i'r Dde"
+
+msgid "Move to Another Workspace"
+msgstr "Symud at Weithfan Arall"
+
+msgid "Unminimize"
+msgstr "Dadleihau"

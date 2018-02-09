@@ -1,0 +1,9 @@
+{
+    "shell-version": ["3.14"],
+    "uuid": "Applications_Menu@rmy.pobox.com",
+    "name": "Frippery Applications Menu",
+    "description": "Replace Activities button with an Applications menu",
+    "url": "http://frippery.org/extensions",
+    "gettext-domain": "frippery-applications-menu",
+    "settings-schema": "org.frippery.applications-menu"
+}

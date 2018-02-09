@@ -1,0 +1,25 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Γραμμές στην εφαρμογή εναλλαγής χώρων εργασίας"
+
+msgid "Number of Workspaces"
+msgstr "Αριθμός χώρων εργασίας"
+
+msgid "Move to Workspace Left"
+msgstr "Μετακίνηση στο χώρο εργασίας αριστερά"
+
+msgid "Move to Workspace Right"
+msgstr "Μετακίνηση στο χώρο εργασίας δεξιά"
+
+msgid "Move to Another Workspace"
+msgstr "Μετακίνηση σε άλλο χώρο εργασίας"
+
+msgid "Unminimize"
+msgstr "Απελαχιστοποίηση"

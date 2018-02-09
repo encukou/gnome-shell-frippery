@@ -1,0 +1,13 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "ជួរដេក​នៅ​ក្នុង​កម្មវិធី​ប្ដូរ​តំបន់​ធ្វើការ"
+
+msgid "Unminimize"
+msgstr "មិន​បង្រួម​អប្បបរមា"

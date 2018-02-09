@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Linennoù er c'hemmer tachennoù-labour"
+
+msgid "Move to Workspace Left"
+msgstr "Kas d'an dachenn-labour kleiz"
+
+msgid "Move to Workspace Right"
+msgstr "Kas d'an dachenn-labour dehou"
+
+msgid "Move to Another Workspace"
+msgstr "Kas d'un dachenn-labour all"
+
+msgid "Unminimize"
+msgstr "Divihanaat"

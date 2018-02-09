@@ -1,0 +1,9 @@
+{
+    "shell-version": ["3.14"],
+    "uuid": "Bottom_Panel@rmy.pobox.com",
+    "name": "Frippery Bottom Panel",
+    "description": "Add a bottom panel to the shell",
+    "url": "http://frippery.org/extensions",
+    "gettext-domain": "frippery-bottom-panel",
+    "settings-schema": "org.frippery.bottom-panel"
+}

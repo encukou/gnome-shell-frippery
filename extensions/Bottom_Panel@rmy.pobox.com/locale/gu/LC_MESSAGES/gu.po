@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "કામ કરવાની જગ્યામાં ફેરબદલી કરનારમાં આવેલ હરોળો"
+
+msgid "Move to Workspace Left"
+msgstr "ડાબી કામ કરવાની જગ્યામાં ખસો"
+
+msgid "Move to Workspace Right"
+msgstr "જમણી કામ કરવાની જગ્યામાં ખસો"
+
+msgid "Move to Another Workspace"
+msgstr "બીજી કામ કરવાની જગ્યામાં ખસેડો"
+
+msgid "Unminimize"
+msgstr "ન્યૂનતમમાંથી પાછુ લાવો"

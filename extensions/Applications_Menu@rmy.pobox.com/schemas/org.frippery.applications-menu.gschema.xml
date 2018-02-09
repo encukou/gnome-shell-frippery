@@ -1,0 +1,19 @@
+<schemalist gettext-domain="frippery-applications-menu">
+<schema id="org.frippery.applications-menu" path="/org/frippery/applications-menu/">
+    <key name="show-icon" type="b">
+      <default>true</default>
+      <summary>Display applications menu icon</summary>
+      <description>Set to true to show an icon in the applications menu button.</description>
+    </key>
+    <key name="show-text" type="b">
+      <default>true</default>
+      <summary>Display applications menu text</summary>
+      <description>Set to true to show text in the applications menu button.</description>
+    </key>
+    <key name="enable-hot-corner" type="b">
+      <default>true</default>
+      <summary>Enable applications menu hot corner</summary>
+      <description>Set to true to enable the hot corner associated with the applications menu.</description>
+    </key>
+</schema>
+</schemalist>

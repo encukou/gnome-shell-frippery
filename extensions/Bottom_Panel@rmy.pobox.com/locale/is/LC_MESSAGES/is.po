@@ -1,0 +1,22 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+
+msgid "Rows in workspace switcher"
+msgstr "Raðir í vinnusvæðaskiptara"
+
+msgid "Move to Workspace Left"
+msgstr "Flytja yfir á vinnusvæði 9"
+
+msgid "Move to Workspace Right"
+msgstr "Flytja glugga yfir á vinnusvæði 1"
+
+msgid "Move to Another Workspace"
+msgstr "Flytja glugga upp um eitt vinnusvæði"
+
+msgid "Unminimize"
+msgstr "Stækka upp á ný"
