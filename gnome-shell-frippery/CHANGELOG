@@ -1,3 +1,9 @@
+20170627 - 3.24.0
+
+Fix redeclaration of variable in preferences for Bottom Panel.  (Reported
+by Boehemyth.)
+Update for GNOME 3.24.
+
 20170305 - 3.22.1
 
 Add accessibility support to Applications Menu.

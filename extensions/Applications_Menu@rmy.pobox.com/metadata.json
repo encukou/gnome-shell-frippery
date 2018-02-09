@@ -1,5 +1,5 @@
 {
-    "shell-version": ["3.20", "3.22"],
+    "shell-version": ["3.20", "3.22", "3.24"],
     "uuid": "Applications_Menu@rmy.pobox.com",
     "name": "Frippery Applications Menu",
     "description": "Replace Activities button with an Applications menu",

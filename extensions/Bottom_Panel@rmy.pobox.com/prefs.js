@@ -53,7 +53,7 @@ const BottomPanelSettingsWidget = new GObject.Class({
         let nrows = this.settings.get_int(SETTINGS_NUM_ROWS);
         this.attach(new Gtk.Label({ label: _f('Rows in workspace switcher'),
                                     halign: Gtk.Align.END }), 0, 1, 1, 1);
-        let adjustment = new Gtk.Adjustment({ lower: 1, upper: 5,
+        adjustment = new Gtk.Adjustment({ lower: 1, upper: 5,
                                     step_increment: 1 });
         spin = new Gtk.SpinButton({ adjustment: adjustment,
                         snap_to_ticks: true });
