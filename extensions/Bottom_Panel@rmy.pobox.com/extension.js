@@ -846,6 +846,17 @@ const WorkspaceButton = new Lang.Class({
         this.actor.connect('clicked', Lang.bind(this, this._onClicked));
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
 
+        if ( index < global.screen.n_workspaces ) {
+            let ws = global.screen.get_workspace_by_index(index);
+            this._ws = ws;
+            this._windowAddedId = ws.connect('window-added',
+                                        Lang.bind(this, this.resetAppearance));
+            this._windowRemovedId = ws.connect('window-removed',
+                                        Lang.bind(this, this.resetAppearance));
+        } else {
+            this._ws = null;
+        }
+
         this.label = new St.Label();
         this.actor.set_child(this.label);
 
@@ -868,29 +879,46 @@ const WorkspaceButton = new Lang.Class({
 
     _onDestroy: function() {
         this.tooltip.destroy();
+        this._ws.disconnect(this._windowAddedId);
+        this._ws.disconnect(this._windowRemovedId);
     },
 
     setIndex: function(index) {
         if ( index < 0 || index >= global.screen.n_workspaces ) {
             return;
         }
-
         this.index = index;
+        this._ws = global.screen.get_workspace_by_index(index);
+        return this.resetAppearance();
+    },
+
+    resetAppearance: function() {
+        let index = this.index;
+        if (this._ws === null) {
+            this.actor.remove_style_pseudo_class('has-windows');
+        } else {
+            let windows = this._ws.list_windows();
+            if ( windows.length > 0 ) {
+                this.actor.add_style_pseudo_class('has-windows');
+            } else {
+                this.actor.remove_style_pseudo_class('has-windows');
+            }
+        }
+
+        if (index % 4 == 0) {
+            this.actor.add_style_pseudo_class('starts-section');
+        } else {
+            this.actor.remove_style_pseudo_class('starts-section');
+        }
 
         let active = global.screen.get_active_workspace_index();
         let ws_name = Meta.prefs_get_workspace_name(index);
+        this.label.set_text(ws_name);
 
         if ( index == active ) {
-            this.label.set_text(ws_name.toUpperCase());
-            this.actor.add_style_pseudo_class('outlined');
-        }
-        else if ( index < global.screen.n_workspaces ) {
-            this.label.set_text(ws_name);
-            this.actor.remove_style_pseudo_class('outlined');
-        }
-        else {
-            this.label.set_text('');
-            this.actor.remove_style_pseudo_class('outlined');
+            this.actor.add_style_pseudo_class('is-active');
+        } else {
+            this.actor.remove_style_pseudo_class('is-active');
         }
         this.tooltip.set_text(ws_name);
     }
