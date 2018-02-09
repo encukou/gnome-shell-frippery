@@ -201,7 +201,8 @@ const ApplicationsMenuDialog = new Lang.Class({
 
         this.setButtons(buttons);
 
-        this._buttonKeys[Clutter.Escape] = this._buttonKeys[Clutter.Return];
+        this.dialogLayout._buttonKeys[Clutter.Escape] =
+            this.dialogLayout._buttonKeys[Clutter.Return];
     },
 
     open: function() {
@@ -248,6 +249,9 @@ const ApplicationsMenuButton = new Lang.Class({
         let logo = new St.Icon({ icon_name: 'start-here',
                                  style_class: 'applications-menu-button-icon'});
         this._iconBox.child = logo;
+        this._iconBox.opacity = 207;
+        this.actor.connect('notify::hover',
+                Lang.bind(this, this._onHoverChanged));
 
         let label = new St.Label({ text: " " });
         this._box.add(label, { y_align: St.Align.MIDDLE, y_fill: false });
@@ -283,6 +287,10 @@ const ApplicationsMenuButton = new Lang.Class({
         Main.layoutManager.connect('startup-complete',
                                    Lang.bind(this, this._setKeybinding));
         this._setKeybinding();
+    },
+
+    _onHoverChanged: function(actor) {
+        this._iconBox.opacity = actor.hover ? 255 : 207;
     },
 
     _setKeybinding: function() {

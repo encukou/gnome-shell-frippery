@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2016 R M Yorston
+// Copyright (C) 2011-2017 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -1118,6 +1118,8 @@ const BottomPanel = new Lang.Class({
 
         this.actor.connect('style-changed', Lang.bind(this, this.relayout));
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
+		this.actor.connect('allocation-changed', Lang.bind(this, this._updateSolidStyle));
+
         this._monitorsChangedId = global.screen.connect('monitors-changed',
                 Lang.bind(this, this.relayout));
         this._sessionUpdatedId = Main.sessionMode.connect('updated',
@@ -1131,6 +1133,37 @@ const BottomPanel = new Lang.Class({
         this._showPanelChangedId = this._settings.connect(
                                    'changed::'+SETTINGS_SHOW_PANEL,
                                    Lang.bind(this, this._showPanelChanged));
+        this._overviewHidingId = Main.overview.connect('hiding',
+                Lang.bind(this, function () { this._updateSolidStyle(); }));
+        this._overviewShowingId = Main.overview.connect('showing', 
+                Lang.bind(this, function () { this._updateSolidStyle(); }));
+
+        this._trackedWindows = new Map();
+        global.get_window_actors().forEach(a => {
+            this._onWindowActorAdded(a.get_parent(), a);
+        });
+
+        this._onWindowActorAddedID = global.window_group.connect(
+            'actor-added', Lang.bind(this, this._onWindowActorAdded));
+        this._onWindowActorRemovedID = global.window_group.connect(
+            'actor-removed', Lang.bind(this, this._onWindowActorRemoved));
+    },
+
+    _onWindowActorAdded: function(container, metaWindowActor) {
+        let signalIds = [];
+        ['allocation-changed', 'notify::visible'].forEach(s => {
+            signalIds.push(metaWindowActor.connect(s,
+                Lang.bind(this, this._updateSolidStyle)));
+        });
+        this._trackedWindows.set(metaWindowActor, signalIds);
+    },
+
+    _onWindowActorRemoved: function(container, metaWindowActor) {
+        this._trackedWindows.get(metaWindowActor).forEach(id => {
+            metaWindowActor.disconnect(id);
+        });
+        this._trackedWindows.delete(metaWindowActor);
+        this._updateSolidStyle();
     },
 
     relayout: function() {
@@ -1141,6 +1174,7 @@ const BottomPanel = new Lang.Class({
         if ( !show_panel[active] ) h = -h;
         this.actor.set_position(bottom.x, bottom.y+bottom.height-h);
         this.actor.set_size(bottom.width, -1);
+        this._updateSolidStyle();
     },
 
     _sessionUpdated: function() {
@@ -1180,7 +1214,57 @@ const BottomPanel = new Lang.Class({
             this._settings.disconnect(this._showPanelChangedId);
             this._showPanelChangedId = 0;
         }
+
+        if ( this._overviewHidingId != 0 ) {
+            Main.overview.disconnect(this._overviewHidingId);
+            this._overviewHidingId = 0;
+        }
+
+        if ( this._overviewShowingId != 0 ) {
+            Main.overview.disconnect(this._overviewShowingId);
+            this._overviewShowingId = 0;
+        }
+
+        if ( this._onWindowActorAddedID != 0 ) {
+            global.window_group.disconnect(this._onWindowActorAddedID);
+            this._onWindowActorAddedID = 0;
+        }
+
+        if ( this._onWindowActorRemovedID != 0 ) {
+            global.window_group.disconnect(this._onWindowActorRemovedID);
+            this._onWindowActorRemovedID = 0;
+        }
+    },
+
+    _updateSolidStyle: function() {
+        if (this.actor.has_style_pseudo_class('overview') || !Main.sessionMode.hasWindows) {
+            this._removeStyleClassName('solid');
+            return;
+        }
+
+        /* Get all the windows in the active workspace that are in the primary monitor and visible */
+        let activeWorkspace = global.screen.get_active_workspace();
+        let windows = activeWorkspace.list_windows().filter(function(metaWindow) {
+            return metaWindow.is_on_primary_monitor() &&
+                   metaWindow.showing_on_its_workspace() &&
+                   metaWindow.get_window_type() != Meta.WindowType.DESKTOP;
+        });
+
+        /* Check if at least one window is near enough to the panel */
+        let [, panelTop] = this.actor.get_transformed_position();
+        let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        let isNearEnough = windows.some(Lang.bind(this, function(metaWindow) {
+            let rect = metaWindow.get_frame_rect();
+            let verticalPosition = rect.y + rect.height;
+            return verticalPosition > panelTop - 5 * scale;
+        }));
+
+        if (isNearEnough)
+            this.actor.add_style_class_name('solid');
+        else
+            this.actor.remove_style_class_name('solid');
     }
+
 });
 
 const FRIPPERY_TIMEOUT = 400;

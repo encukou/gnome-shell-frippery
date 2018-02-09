@@ -1,3 +1,23 @@
+20171012 - 3.26.2
+
+Access panel details through Main.sessionMode in Move Clock.
+
+20171008 - 3.26.1
+
+Revert to using SessionMode._modes in Move Clock to avoid breakage
+on Ubuntu.
+Fiddle with theme to make Bottom Panel more legible.
+Update transparency of Bottom Panel when its allocation changes.
+
+20170927 - 3.26.0
+
+Update for GNOME 3.26.
+Add support for transparency to Bottom Panel.
+Avoid accessing SessionMode._modes in Move Clock.
+Change how _buttonKeys is accessed in Applications Menu following upstream
+refactoring of ModalDialog.
+Change opacity of icon on hover in Applications Menu.
+
 20170627 - 3.24.0
 
 Fix redeclaration of variable in preferences for Bottom Panel.  (Reported
