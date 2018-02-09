@@ -1,34 +1,57 @@
-20160107 - 0.9.5
+20170305 - 3.22.1
+
+Add accessibility support to Applications Menu.
+
+20161018 - 3.22.0
+
+Adjust icon size in Panel Favorites to support HiDPI displays.
+Update for GNOME 3.22.
+
+20160412 - 3.20.0
+
+Update for GNOME 3.20.
+Add log messages to extensions that don't work in classic mode.
+
+20160107 - 3.18.2
 
 Fix keybinding for Application Menu (see GNOME bug 746639)
+Allow entries in hot corner array to be null.
 
-20151016 - 0.9.4
+20151009 - 3.18.1
 
 Applications Menu and Bottom Panel use GSettings to store preferences
 and have standard GNOME Shell preferences dialogs in addition to the
 Frippery right-click dialogs.
-Reduce OpenJDK 8 menu ugliness.
-Allow entries in hot corner array to be null.
+Reduce OpenJDK 8 ugliness.
+
+20151005 - 3.18.0
+
+Update for GNOME 3.18.
 If an application has many activatable windows use scrolled submenus
 in the Panel Favorites context menu to prevent it growing too long.
 
-20150708 - 0.9.3
+20150708 - 0.10.3
 
-Tidy up menus in the window list of BottomPanel:
-- use an indicator instead of a switch for values that can be toggled
-- replace our own translations with those from the Shell now that it
-  supports window menus.
+Introduce padding between Panel Favorites and the app menu.
+Update translations in Applications Menu.
+Tidy up menus in the window list of Bottom Panel:
+ - use an indicator instead of a switch for values that can be toggled
+ - replace our own translations with those from the Shell now that it
+   supports window menus.
 Add 'Move to Another Workspace' submenu to window list menu in Bottom Panel
-Update translations for Bottom Panel
 
-20150623 - 0.9.2
+20150623 - 0.10.2
 
-Add right-click menu to Panel Favorites items, duplicating the functions
+Add right-click menu to Panel Favorites icons, duplicating the functions
 available in the similar menu in the dash.
 
-20150618 - 0.9.1
+20150618 - 0.10.1
 
-Don't add broken applications to the menu
+Don't add broken applications to menu
+
+20150505 - 0.10.0
+
+Update for GNOME 3.16.
 
 20141108 - 0.9.0
 

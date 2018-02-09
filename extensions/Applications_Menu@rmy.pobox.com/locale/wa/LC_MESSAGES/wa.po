@@ -23,9 +23,3 @@ msgstr "Imådjete"
 msgid "Text"
 msgstr "Tecse"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Clôre"
-

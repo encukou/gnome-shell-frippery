@@ -1,5 +1,13 @@
 .panel-favorites {
     spacing: 6px;
+    padding-left: 0px;
+    padding-right: 18px;
+}
+
+.panel-favorites:rtl {
+    spacing: 6px;
+    padding-left: 18px;
+    padding-right: 0px;
 }
 
 .panel-launcher-label {

@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2015 R M Yorston
+// Copyright (C) 2011-2016 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -28,7 +28,9 @@ const PanelLauncher = new Lang.Class({
     _init: function(app) {
         this.actor = new St.Button({ style_class: 'panel-button',
                                      reactive: true });
-        this.iconSize = 24;
+        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        scaleFactor = scaleFactor <= 0 ? 1 : scaleFactor;
+        this.iconSize = 24 / scaleFactor;
         let icon = app.create_icon_texture(this.iconSize);
         this.actor.set_child(icon);
         this.actor._delegate = this;
@@ -53,13 +55,17 @@ const PanelLauncher = new Lang.Class({
         this.actor.connect('notify::hover',
                 Lang.bind(this, this._onHoverChanged));
         this.actor.connect('button-press-event',
-                Lang.bind(this, this._onButtonPressed));
+                Lang.bind(this, this._onButtonPress));
         this.actor.opacity = 207;
 
         this.actor.connect('notify::allocation', Lang.bind(this, this._alloc));
     },
 
-    _onButtonPressed: function(actor, event) {
+    _onHoverChanged: function(actor) {
+        actor.opacity = actor.hover ? 255 : 207;
+    },
+
+    _onButtonPress: function(actor, event) {
         let button = event.get_button();
         if (button == 3) {
             this.popupMenu();
@@ -91,12 +97,12 @@ const PanelLauncher = new Lang.Class({
 
         return false;
     },
-    _onHoverChanged: function(actor) {
-        actor.opacity = actor.hover ? 255 : 207;
-    },
 
     _alloc: function() {
-        let size = this.actor.allocation.y2 - this.actor.allocation.y1 - 3;
+        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        scaleFactor = scaleFactor <= 0 ? 1 : scaleFactor;
+        let allocation = this.actor.allocation;
+        let size = (allocation.y2 - allocation.y1 - 1)/scaleFactor - 2;
         if ( size >= 24 && size != this.iconSize ) {
             this.actor.get_child().destroy();
             this.iconSize = size;
@@ -264,6 +270,7 @@ const PanelFavorites = new Lang.Class({
 });
 Signals.addSignalMethods(PanelFavorites.prototype);
 
+// this code stolen from appDisplay.js
 const AppIconMenu = new Lang.Class({
     Name: 'AppIconMenu',
     Extends: PopupMenu.PopupMenu,
@@ -312,14 +319,17 @@ const AppIconMenu = new Lang.Class({
             this._appendSeparator();
         }
 
-        this._appendWindows(use_submenu, _f('Other Workspaces'), w_there);
+		this._appendWindows(use_submenu, _f('Other Workspaces'), w_there);
 
         if (!this._source._app.is_window_backed()) {
             if (w_there.length && !use_submenu) {
                 this._appendSeparator();
             }
 
-            if (this._source._app.can_open_new_window()) {
+            let appInfo = this._source._app.get_app_info();
+            let actions = appInfo.list_actions();
+            if (this._source._app.can_open_new_window() &&
+                actions.indexOf('new-window') == -1) {
                 let item = this._appendMenuItem(_("New Window"));
                 item.connect('activate', Lang.bind(this, function() {
                     this._source._app.open_new_window(-1);
@@ -327,8 +337,6 @@ const AppIconMenu = new Lang.Class({
                 }));
             }
 
-            let appInfo = this._source._app.get_app_info();
-            let actions = appInfo.list_actions();
             for (let i = 0; i < actions.length; i++) {
                 let action = actions[i];
                 let item = this._appendMenuItem(appInfo.get_action_name(action));
@@ -338,14 +346,18 @@ const AppIconMenu = new Lang.Class({
                 }));
             }
 
-            let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
+            let canFavorite = global.settings.is_writable('favorite-apps');
 
-            if (isFavorite) {
-                let item = this._appendMenuItem(_("Remove from Favorites"));
-                item.connect('activate', Lang.bind(this, function() {
-                    let favs = AppFavorites.getAppFavorites();
-                    favs.removeFavorite(this._source._app.get_id());
-                }));
+            if (canFavorite) {
+                let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
+
+                if (isFavorite) {
+                    let item = this._appendMenuItem(_("Remove from Favorites"));
+                    item.connect('activate', Lang.bind(this, function() {
+                        let favs = AppFavorites.getAppFavorites();
+                        favs.removeFavorite(this._source._app.get_id());
+                    }));
+                }
             }
 
             if (Shell.AppSystem.get_default().lookup_app('org.gnome.Software.desktop')) {

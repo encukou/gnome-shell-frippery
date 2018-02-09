@@ -25,9 +25,3 @@ msgstr ""
 msgid "Text"
 msgstr "Nivîs"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Bigire"
-

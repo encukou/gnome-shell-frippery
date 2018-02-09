@@ -21,11 +21,3 @@ msgstr "Icono"
 msgid "Text"
 msgstr "Texto"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Cerrar"
-
-# src/file-manager/fm-icon-view.c:1105
-

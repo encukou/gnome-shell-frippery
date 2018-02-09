@@ -22,9 +22,3 @@ msgstr "Kuvake"
 msgid "Text"
 msgstr "Teksti"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Sulje"
-

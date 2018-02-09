@@ -15,10 +15,10 @@ Favourites in panel
   Place a launcher for each favourite application in the panel.  It isn't
   possible to manage the list from the panel: instead you can add, remove
   or move favourite applications in the dash and the panel display will
-  update to match.
+  update to match.  This extension also works in classic mode.
 
   Right clicking on the icons in the panel invokes a menu similar to the
-  right-click menu in the dash.
+  corresponding menu in the dash.
 
 Applications menu in panel
 
@@ -32,10 +32,11 @@ Applications menu in panel
   turn off the icon, text and hot corner.  If you turn off both the icon
   and the text the menu is disabled.
 
+  This extension doesn't work in classic mode.
+
 Bottom panel
 
-  Add a bottom panel, including a window list, workspace switcher and message
-  tray button.
+  Add a bottom panel, including a window list and workspace switcher.
 
   Items in the window list have a right-click menu which allows each window
   to be minimised, maximised, moved to a different workspace or closed.
@@ -47,17 +48,15 @@ Bottom panel
   Clicking on the row indicator changes row.  The mouse scroll wheel can be
   used in the row indicator or workspace switcher to change workspace.
 
-  The message tray button shows and hides the message tray.  If no messages
-  are available the button is blank.
-
   The bottom panel can be configured by right clicking on the workspace
   switcher.  Settings available are:
 
     the number of workspaces and the number of rows;
     enable/disable dynamic workspaces;
-    show/hide the message tray button;
     whether or not the panel appears on each workspace (except the first:
     the panel is always present on the first workspace).
+
+  This extension doesn't work in classic mode.
 
 The latest version of the extensions can be found here:
 

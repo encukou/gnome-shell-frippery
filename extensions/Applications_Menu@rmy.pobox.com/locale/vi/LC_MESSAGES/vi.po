@@ -25,9 +25,3 @@ msgstr "Biểu tượng"
 msgid "Text"
 msgstr "Văn bản"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Đóng"
-

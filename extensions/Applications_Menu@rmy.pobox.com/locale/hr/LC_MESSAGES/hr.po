@@ -5,6 +5,7 @@
 # Translation of gnome-glossary to Croatiann
 # Copyright (C) Croatiann team
 # Translators: Automatski Prijevod <>,Denis Lackovic <delacko@fly.srk.fer.hr>,Ivan Jankovic <rbrrneck@gmx.net>,
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: gnome-glossary \n"
@@ -24,10 +25,4 @@ msgstr "Sličica"
 
 msgid "Text"
 msgstr "Tekst"
-
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Zatvori"
 

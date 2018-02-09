@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2016 R M Yorston
+// Copyright (C) 2011-2017 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -56,6 +56,11 @@ const ApplicationMenuItem = new Lang.Class({
         matches = /^(OpenJDK Monitoring & Management Console) (.*)/.exec(name);
         if ( matches && matches.length == 3 ) {
             name = "OpenJDK Console\n" + matches[2];
+        }
+
+        matches = /^(OpenJDK 8 Monitoring & Management Console) (.*)/.exec(name);
+        if ( matches && matches.length == 3 ) {
+            name = "OpenJDK 8 Console\n" + matches[2];
         }
 
         let label = new St.Label({ text: name });
@@ -153,39 +158,45 @@ const ApplicationsMenuDialog = new Lang.Class({
 
         this.button = button;
 
-        let table = new St.Table({homogeneous: false, reactive: true,
+        let layout= new Clutter.TableLayout();
+        let table = new St.Widget({reactive: true,
+                              layout_manager: layout,
                               styleClass: 'applications-menu-dialog-table'});
+        layout.hookup_style(table);
         this.contentLayout.add(table, { y_align: St.Align.START });
 
         let label = new St.Label(
                         { style_class: 'applications-menu-dialog-label',
                           text: _f('Icon') });
-        table.add(label, { row: 0, col: 0 });
+        layout.pack(label, 0, 0);
 
         this.iconSwitch = new ShowHideSwitch(button._iconBox, true);
-        table.add(this.iconSwitch.actor, { row: 0, col: 1 });
+        this.iconSwitch.actor.set_accessible_name(_f('Icon'));
+        layout.pack(this.iconSwitch.actor, 1, 0);
 
         label = new St.Label(
                         { style_class: 'applications-menu-dialog-label',
                           text: _f('Text') });
-        table.add(label, { row: 1, col: 0 });
+        layout.pack(label, 0, 1);
 
         this.labelSwitch = new ShowHideSwitch(button._label, true);
-        table.add(this.labelSwitch.actor, { row: 1, col: 1 });
+        this.labelSwitch.actor.set_accessible_name(_f('Text'));
+        layout.pack(this.labelSwitch.actor, 1, 1);
 
         label = new St.Label({ style_class: 'applications-menu-dialog-label',
                         text: _f('Hot corner') });
-        table.add(label, { row: 2, col: 0 });
+        layout.pack(label, 0, 2);
 
         this.tlcSwitch = new ToggleSwitch(true);
+        this.tlcSwitch.actor.set_accessible_name(_f('Hot corner'));
         this.tlcSwitch.toggle = Lang.bind(this.tlcSwitch, function() {
                 PopupMenu.Switch.prototype.toggle.call(this);
                 Main.layoutManager._setHotCornerState(this.getState());
             });
-        table.add(this.tlcSwitch.actor, { row: 2, col: 1 });
+        layout.pack(this.tlcSwitch.actor, 1, 2);
 
         let buttons = [{ action: Lang.bind(this, this.close),
-                         label:  _f("Close"),
+                         label:  _("Close"),
                          default: true }];
 
         this.setButtons(buttons);
@@ -227,7 +238,7 @@ const ApplicationsMenuButton = new Lang.Class({
     Extends: PanelMenu.Button,
 
     _init: function() {
-        this.parent(1.0, null, false);
+        this.parent(1.0, _("Applications"), false);
 
         this._box = new St.BoxLayout();
 
@@ -276,14 +287,19 @@ const ApplicationsMenuButton = new Lang.Class({
 
     _setKeybinding: function() {
         Main.wm.setCustomKeybindingHandler('panel-main-menu',
-                                   Shell.KeyBindingMode.NORMAL |
-                                   Shell.KeyBindingMode.OVERVIEW,
+                                   Shell.ActionMode.NORMAL |
+                                   Shell.ActionMode.OVERVIEW,
                                    Lang.bind(this, function() {
                                        this.menu.toggle();
                                    }));
     },
 
     _onEvent: function(actor, event) {
+        if ( event.type() == Clutter.EventType.BUTTON_RELEASE &&
+                event.get_button() == 3 ) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
         if ( event.type() == Clutter.EventType.BUTTON_PRESS &&
                 event.get_button() == 3 ) {
             return Clutter.EVENT_STOP;
@@ -314,8 +330,8 @@ const ApplicationsMenuButton = new Lang.Class({
         }
 
         Main.wm.setCustomKeybindingHandler('panel-main-menu',
-                           Shell.KeyBindingMode.NORMAL |
-                           Shell.KeyBindingMode.OVERVIEW,
+                           Shell.ActionMode.NORMAL |
+                           Shell.ActionMode.OVERVIEW,
                            Main.sessionMode.hasOverview ?
                            Lang.bind(Main.overview, Main.overview.toggle) :
                            null);
@@ -328,9 +344,15 @@ const ApplicationsMenuButton = new Lang.Class({
         while ((nextType = iter.next()) != GMenu.TreeItemType.INVALID) {
             if (nextType == GMenu.TreeItemType.ENTRY) {
                 let entry = iter.get_entry();
-                let appInfo = entry.get_app_info();
-                let app = this._appSystem.lookup_app(entry.get_desktop_file_id());
-                if (app && appInfo.should_show())
+                let id;
+                try {
+                    id = entry.get_desktop_file_id();
+                }
+                catch (e) {
+                    continue;
+                }
+                let app = this._appSystem.lookup_app(id);
+                if (app && app.get_app_info().should_show())
                     appList.push(app);
             } else if (nextType == GMenu.TreeItemType.DIRECTORY) {
                 var itemDir = iter.get_directory();
@@ -427,6 +449,7 @@ const ApplicationsMenuExtension = new Lang.Class({
     enable: function() {
         let mode = Main.sessionMode.currentMode;
         if ( mode == 'classic' ) {
+            log('Frippery Applications Menu does not work in Classic mode');
             return;
         }
 

@@ -28,9 +28,3 @@ msgstr "Εικονίδιο"
 msgid "Text"
 msgstr "Κείμενο"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Κλείσιμο"
-

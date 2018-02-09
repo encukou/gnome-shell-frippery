@@ -22,9 +22,3 @@ msgstr "ምልክት"
 msgid "Text"
 msgstr "ጽሑፍ"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "ዝጋ"
-

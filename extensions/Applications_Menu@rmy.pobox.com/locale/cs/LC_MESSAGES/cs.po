@@ -25,9 +25,3 @@ msgstr "Ikona"
 msgid "Text"
 msgstr "Text"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Zavřít"
-

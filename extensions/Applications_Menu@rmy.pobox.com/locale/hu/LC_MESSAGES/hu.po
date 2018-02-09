@@ -24,9 +24,3 @@ msgstr "Ikon"
 msgid "Text"
 msgstr "Szöveg"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Bezárás"
-

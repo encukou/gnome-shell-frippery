@@ -23,9 +23,3 @@ msgstr "أيقونة"
 msgid "Text"
 msgstr "نص"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "إغلاق"
-

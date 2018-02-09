@@ -21,9 +21,3 @@ msgstr "ਆਈਕਾਨ"
 msgid "Text"
 msgstr "ਪਾਠ"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "ਬੰਦ"
-

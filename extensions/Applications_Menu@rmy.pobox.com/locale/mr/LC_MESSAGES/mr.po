@@ -22,9 +22,3 @@ msgstr "चिन्ह, प्रतिक"
 msgid "Text"
 msgstr "शब्दसंच, मजकूर"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "बंद करा"
-

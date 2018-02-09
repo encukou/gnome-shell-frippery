@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2015 R M Yorston
+// Copyright (C) 2011-2016 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -14,7 +14,6 @@ const St = imports.gi.St;
 
 const CheckBox = imports.ui.checkBox;
 const Main = imports.ui.main;
-const MessageTray = imports.ui.messageTray;
 const ModalDialog = imports.ui.modalDialog;
 const PopupMenu = imports.ui.popupMenu;
 const Tweener = imports.ui.tweener;
@@ -37,7 +36,6 @@ const SETTINGS_NUM_ROWS = 'num-rows';
 const SETTINGS_SHOW_PANEL = 'show-panel';
 
 let show_panel = [];
-let show_tray_button = true;
 
 /*
  * This is a base class for containers that manage the tooltips of their
@@ -101,7 +99,6 @@ const TooltipChild = new Lang.Class({
     Name: 'TooltipChild',
 
     _init: function() {
-        this._messageTrayShowingId = 0;
     },
 
     showTooltip: function(container) {
@@ -140,20 +137,10 @@ const TooltipChild = new Lang.Class({
                        time: BOTTOM_PANEL_TOOLTIP_SHOW_TIME,
                        transition: 'easeOutQuad',
                      });
-
-        this._messageTrayShowingId = Main.messageTray.connect('showing',
-            Lang.bind(this, function() {
-                this.actor.hover = false;
-                container._onHover(this);
-            }));
     },
 
     hideTooltip: function () {
         this.tooltip.opacity = 255;
-        if ( this._messageTrayShowingId > 0 ) {
-            Main.messageTray.disconnect(this._messageTrayShowingId);
-            this._messageTrayShowingId = 0;
-        }
 
         Tweener.addTween(this.tooltip,
                      { opacity: 0,
@@ -163,13 +150,6 @@ const TooltipChild = new Lang.Class({
                            this.tooltip.hide();
                        })
                      });
-    },
-
-    _onDestroy: function() {
-        if ( this._messageTrayShowingId > 0 ) {
-            Main.messageTray.disconnect(this._messageTrayShowingId);
-            this._messageTrayShowingId = 0;
-        }
     }
 });
 
@@ -389,7 +369,7 @@ const WindowListItem = new Lang.Class({
                                   can_focus: true });
         this.actor._delegate = this;
 
-        let title = metaWindow.title;
+        let title = metaWindow.title ? metaWindow.title : ' ';
 
         this.tooltip = new St.Label({ style_class: 'bottom-panel-tooltip'});
         this.tooltip.set_text(title);
@@ -401,7 +381,9 @@ const WindowListItem = new Lang.Class({
         this.metaWindow = metaWindow;
         this.actor.add_actor(this._itemBox);
 
-        this.icon = app.create_icon_texture(16);
+        this.icon = app ? app.create_icon_texture(16) :
+                          new St.Icon({ icon_name: 'icon-missing',
+                                        icon_size: 16 });
 
         if ( !metaWindow.showing_on_its_workspace() ) {
             title = '[' + title + ']';
@@ -453,7 +435,6 @@ const WindowListItem = new Lang.Class({
     },
 
     _onDestroy: function() {
-        this.parent();
         this.metaWindow.disconnect(this._notifyTitleId);
         this.metaWindow.disconnect(this._notifyMinimizedId);
         global.display.disconnect(this._notifyFocusId);
@@ -715,23 +696,6 @@ const DynamicWorkspacesSwitch = new Lang.Class({
     }
 });
 
-const TrayButtonSwitch = new Lang.Class({
-    Name: 'TrayButtonSwitch',
-    Extends: ToggleSwitch,
-
-    toggle: function() {
-        this.parent();
-
-        if ( this.state ) {
-            bottomPanel.messageButton.actor.show();
-        }
-        else {
-            bottomPanel.messageButton.actor.hide();
-        }
-        show_tray_button = this.state;
-    }
-});
-
 const WorkspaceDialog = new Lang.Class({
     Name: 'WorkspaceDialog',
     Extends: ModalDialog.ModalDialog,
@@ -739,49 +703,48 @@ const WorkspaceDialog = new Lang.Class({
     _init: function() {
         this.parent({ styleClass: 'workspace-dialog' });
 
-        let table = new St.Table({homogeneous: false, reactive: true,
+        let layout = new Clutter.TableLayout();
+        let table = new St.Widget({reactive: true,
+                              layout_manager: layout,
                               styleClass: 'workspace-dialog-table'});
+        layout.hookup_style(table);
         this.contentLayout.add(table, { y_align: St.Align.START });
 
         let label = new St.Label(
                         { style_class: 'workspace-dialog-label',
                           text: _f('Number of Workspaces') });
-        table.add(label, { row: 0, col: 0 });
+        layout.pack(label, 0, 0);
 
         let entry = new St.Entry({ style_class: 'workspace-dialog-entry', can_focus: true });
 
         this._workspaceEntry = entry.clutter_text;
-        table.add(entry, { row: 0, col: 1 });
+        layout.pack(entry, 1, 0);
         this.setInitialKeyFocus(this._workspaceEntry);
 
         label = new St.Label({ style_class: 'workspace-dialog-label',
                                    text: _f('Rows in workspace switcher') });
-        table.add(label, { row: 1, col: 0 });
+        layout.pack(label, 0, 1);
 
         entry = new St.Entry({ style_class: 'workspace-dialog-entry', can_focus: true });
 
         this._rowEntry = entry.clutter_text;
-        table.add(entry, { row: 1, col: 1 });
+        layout.pack(entry, 1, 1);
 
         label = new St.Label({ style_class: 'workspace-dialog-label',
                                    text: _f('Dynamic workspaces') });
-        table.add(label, { row: 2, col: 0 });
+        layout.pack(label, 0, 2);
 
         this._dynamicWorkspaces = new DynamicWorkspacesSwitch();
-        table.add(this._dynamicWorkspaces.actor, { row: 2, col: 1 });
-
-        label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Message tray button') });
-        table.add(label, { row: 3, col: 0 });
-
-        this._trayButtonSwitch = new TrayButtonSwitch(show_tray_button);
-        table.add(this._trayButtonSwitch.actor, { row: 3, col: 1 });
+        layout.pack(this._dynamicWorkspaces.actor, 1, 2);
 
         label = new St.Label({ style_class: 'workspace-dialog-label',
                                    text: _f('Panel visible in workspace') });
-        table.add(label, { row: 4, col: 0, col_span: 2 });
+        layout.pack(label, 0, 3);
+        layout.child_set(label, { column_span: 2 });
 
-        let cbtable = new St.Table({homogeneous: true, reactive: true,
+        let cblayout = new Clutter.TableLayout();
+        let cbtable = new St.Widget({reactive: true,
+                              layout_manager: cblayout,
                               styleClass: 'workspace-dialog-table'});
 
         let ncols = get_ncols();
@@ -799,12 +762,13 @@ const WorkspaceDialog = new Lang.Class({
                     else {
                         this.cb[i].actor.checked = show_panel[i];
                     }
-                    cbtable.add(this.cb[i].actor, { row: r, col: c,
-                        x_fill: false, x_align: St.Align.END });
+                    cblayout.pack(this.cb[i].actor, c, r);
+                    cblayout.child_set(this.cb[i].actor, { x_fill: false });
                 }
             }
         }
-        table.add(cbtable, { row: 5, col: 0, col_span: 2 });
+        layout.pack(cbtable, 0, 4);
+        layout.child_set(cbtable, { column_span: 2 });
 
         let buttons = [{ action: Lang.bind(this, this.close),
                          label:  _("Cancel"),
@@ -903,7 +867,6 @@ const WorkspaceButton = new Lang.Class({
     },
 
     _onDestroy: function() {
-        this.parent();
         this.tooltip.destroy();
     },
 
@@ -1118,40 +1081,6 @@ const WorkspaceSwitcher = new Lang.Class({
     }
 });
 
-const MessageButton = new Lang.Class({
-    Name: 'MessageButton',
-
-    _init: function() {
-        this.actor = new St.Button({ name: 'messageButton',
-                                     style_class: 'message-button',
-                                     reactive: true });
-
-        let text = Main.messageTray._sources.size == 0 ? ' ' : '!';
-        this.messageLabel = new St.Label({ text: text });
-        this.actor.set_child(this.messageLabel);
-        this.actor.connect('clicked', Lang.bind(this, function() {
-            Main.messageTray.toggleState();
-        }));
-
-        this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
-        this.actorAddedId = Main.messageTray._summary.connect('actor-added',
-            Lang.bind(this, this._updateLabel));
-
-        this.actorRemovedId = Main.messageTray._summary.connect('actor-removed',
-            Lang.bind(this, this._updateLabel));
-    },
-
-    _onDestroy: function() {
-        Main.messageTray._summary.disconnect(this.actorAddedId);
-        Main.messageTray._summary.disconnect(this.actorRemovedId);
-    },
-
-    _updateLabel: function() {
-        let text = Main.messageTray._sources.size == 0 ? ' ' : '!';
-        this.messageLabel.set_text(text);
-    }
-});
-
 const BottomPanel = new Lang.Class({
     Name: 'BottomPanel',
 
@@ -1182,11 +1111,10 @@ const BottomPanel = new Lang.Class({
         this.workspaceSwitcher = new WorkspaceSwitcher();
         this.actor.add(this.workspaceSwitcher.actor);
 
-        this.messageButton = new MessageButton();
-        this.actor.add(this.messageButton.actor);
-
         Main.layoutManager.addChrome(this.actor, { affectsStruts: true,
                                                    trackFullscreen: true });
+        Main.uiGroup.set_child_above_sibling(this.actor,
+                Main.layoutManager.panelBox);
 
         this.actor.connect('style-changed', Lang.bind(this, this.relayout));
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
@@ -1213,13 +1141,6 @@ const BottomPanel = new Lang.Class({
         if ( !show_panel[active] ) h = -h;
         this.actor.set_position(bottom.x, bottom.y+bottom.height-h);
         this.actor.set_size(bottom.width, -1);
-
-        if ( show_tray_button ) {
-            bottomPanel.messageButton.actor.show();
-        }
-        else {
-            bottomPanel.messageButton.actor.hide();
-        }
     },
 
     _sessionUpdated: function() {
@@ -1270,18 +1191,22 @@ const FripperySwitcherPopup = new Lang.Class({
 
     _getPreferredHeight : function (actor, forWidth, alloc) {
         let children = this._list.get_children();
-        let primary = Main.layoutManager.primaryMonitor;
+        let workArea = Main.layoutManager.getWorkAreaForMonitor(
+                        Main.layoutManager.primaryIndex);
 
-        let availHeight = primary.height;
-        availHeight -= Main.panel.actor.height;
-        availHeight -= bottomPanel.actor.height;
+        let availHeight = workArea.height;
         availHeight -= this.actor.get_theme_node().get_vertical_padding();
         availHeight -= this._container.get_theme_node().get_vertical_padding();
         availHeight -= this._list.get_theme_node().get_vertical_padding();
 
-        let [childMinHeight, childNaturalHeight] = children[0].get_preferred_height(-1);
+        let height = 0;
+        for (let i = 0; i < children.length; i++) {
+            let [childMinHeight, childNaturalHeight] =
+                    children[i].get_preferred_height(-1);
+            height = Math.max(height, childNaturalHeight);
+        }
 
-        let height = nrows * childNaturalHeight;
+        height = nrows * height;
 
         let spacing = this._itemSpacing * (nrows - 1);
         height += spacing;
@@ -1295,19 +1220,23 @@ const FripperySwitcherPopup = new Lang.Class({
 
     _getPreferredWidth : function (actor, forHeight, alloc) {
         let children = this._list.get_children();
-        let primary = Main.layoutManager.primaryMonitor;
+        let workArea = Main.layoutManager.getWorkAreaForMonitor(
+                        Main.layoutManager.primaryIndex);
 
-        let availWidth = primary.width;
+        let availWidth = workArea.width;
         availWidth -= this.actor.get_theme_node().get_horizontal_padding();
         availWidth -= this._container.get_theme_node().get_horizontal_padding();
         availWidth -= this._list.get_theme_node().get_horizontal_padding();
 
         let ncols = get_ncols();
+        let height = 0;
+        for (let i = 0; i < children.length; i++) {
+            let [childMinHeight, childNaturalHeight] =
+                    children[i].get_preferred_height(-1);
+            height = Math.max(height, childNaturalHeight);
+        }
 
-        let [childMinHeight, childNaturalHeight] = children[0].get_preferred_height(-1);
-        let childNaturalWidth = childNaturalHeight * primary.width/primary.height;
-
-        let width = ncols * childNaturalWidth;
+        let width = ncols * height * workArea.width/workArea.height;
 
         let spacing = this._itemSpacing * (ncols - 1);
         width += spacing;
@@ -1339,19 +1268,19 @@ const FripperySwitcherPopup = new Lang.Class({
         }
     },
 
-    _redraw : function(direction, activeWorkspaceIndex) {
+    _redisplay : function() {
         this._list.destroy_all_children();
 
         for (let i = 0; i < global.screen.n_workspaces; i++) {
             let indicator = null;
 
-           if (i == activeWorkspaceIndex && direction == Meta.MotionDirection.LEFT)
+           if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.LEFT)
                indicator = new St.Bin({ style_class: 'ws-switcher-active-left' });
-           else if (i == activeWorkspaceIndex && direction == Meta.MotionDirection.RIGHT)
+           else if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.RIGHT)
                indicator = new St.Bin({ style_class: 'ws-switcher-active-right' });
-           else if (i == activeWorkspaceIndex && direction == Meta.MotionDirection.UP)
+           else if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.UP)
                indicator = new St.Bin({ style_class: 'ws-switcher-active-up' });
-           else if(i == activeWorkspaceIndex && direction == Meta.MotionDirection.DOWN)
+           else if(i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.DOWN)
                indicator = new St.Bin({ style_class: 'ws-switcher-active-down' });
            else
                indicator = new St.Bin({ style_class: 'ws-switcher-box' });
@@ -1359,10 +1288,19 @@ const FripperySwitcherPopup = new Lang.Class({
            this._list.add_actor(indicator);
 
         }
+
+        let workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex);
+        let [containerMinHeight, containerNatHeight] = this._container.get_preferred_height(global.screen_width);
+        let [containerMinWidth, containerNatWidth] = this._container.get_preferred_width(containerNatHeight);
+        this._container.x = workArea.x + Math.floor((workArea.width - containerNatWidth) / 2);
+        this._container.y = workArea.y + Math.floor((workArea.height - containerNatHeight) / 2);
     },
 
     display : function(direction, activeWorkspaceIndex) {
-        this._redraw(direction, activeWorkspaceIndex);
+        this._direction = direction;
+        this._activeWorkspaceIndex = activeWorkspaceIndex;
+
+        this._redisplay();
         if (this._timeoutId != 0)
             Mainloop.source_remove(this._timeoutId);
         this._timeoutId = Mainloop.timeout_add(FRIPPERY_TIMEOUT, Lang.bind(this, this._onTimeout));
@@ -1370,96 +1308,10 @@ const FripperySwitcherPopup = new Lang.Class({
     }
 });
 
-let myShowTray, origShowTray;
-let myUpdateShowingNotification, origUpdateShowingNotification;
-let myOnNotificationExpanded, origOnNotificationExpanded;
 let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 
 function init(extensionMeta) {
     Convenience.initTranslations();
-
-    origShowTray = MessageTray.MessageTray.prototype._showTray;
-    myShowTray = function() {
-        if (!this._grabHelper.grab({ actor: this.actor,
-                                     onUngrab: Lang.bind(this, this._escapeTray) })) {
-            this._traySummoned = false;
-            return false;
-        }
-
-        this.emit('showing');
-        let h = bottomPanel.actor.get_theme_node().get_height();
-        let active = global.screen.get_active_workspace_index();
-        if ( !show_panel[active] ) h = 0;
-        this._tween(this.actor, '_trayState', MessageTray.State.SHOWN,
-                    { y: - this.actor.height - h,
-                      time: MessageTray.ANIMATION_TIME,
-                      transition: 'easeOutQuad'
-                    });
-
-        for (let i = 0; i < this._lightboxes.length; i++)
-            this._lightboxes[i].show(MessageTray.ANIMATION_TIME);
-
-        return true;
-    };
-
-    origUpdateShowingNotification =
-        MessageTray.MessageTray.prototype._updateShowingNotification;
-    myUpdateShowingNotification = function() {
-        this._notification.acknowledged = true;
-        this._notification.playSound();
-
-        if (this._notification.urgency == MessageTray.Urgency.CRITICAL ||
-            this._notification.source.policy.forceExpanded)
-            this._expandNotification(true);
-
-        let h = bottomPanel.actor.get_theme_node().get_height();
-        let active = global.screen.get_active_workspace_index();
-        if ( !show_panel[active] ) h = 0;
-        let tweenParams = { opacity: 255,
-                            y: -this._notificationWidget.height - h,
-                            time: MessageTray.ANIMATION_TIME,
-                            transition: 'easeOutQuad',
-                            onComplete: this._showNotificationCompleted,
-                            onCompleteScope: this
-                          };
-
-        this._tween(this._notificationWidget, '_notificationState', MessageTray.State.SHOWN, tweenParams);
-    };
-
-    origOnNotificationExpanded =
-        MessageTray.MessageTray.prototype._onNotificationExpanded;
-    myOnNotificationExpanded = function() {
-        let h = bottomPanel.actor.get_theme_node().get_height();
-        let active = global.screen.get_active_workspace_index();
-        if ( !show_panel[active] ) h = 0;
-        let expandedY = - this._notificationWidget.height - h;
-        this._closeButton.show();
-
-        // Don't animate the notification to its new position if it has shrunk:
-        // there will be a very visible "gap" that breaks the illusion.
-        if (this._notificationWidget.y < expandedY) {
-            this._notificationWidget.y = expandedY;
-        } else if (this._notification.y != expandedY) {
-            this._tween(this._notificationWidget, '_notificationState', MessageTray.State.SHOWN,
-                        { y: expandedY,
-                          opacity: 255,
-                          time: MessageTray.ANIMATION_TIME,
-                          transition: 'easeOutQuad'
-                        });
-        }
-    };
-
-    MessageTray.MessageTray.prototype.toggleState = function() {
-        if (this._summaryState == MessageTray.State.SHOWN) {
-            this._pointerInSummary = false;
-            this._traySummoned = false;
-        }
-        else {
-            this._pointerInSummary = true;
-            this._traySummoned = true;
-        }
-        this._updateState();
-    };
 
     origShowWorkspaceSwitcher =
         WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
@@ -1532,14 +1384,10 @@ let bottomPanel = null;
 
 function enable() {
     if ( Main.sessionMode.currentMode == 'classic' ) {
+        log('Frippery Bottom Panel does not work in Classic mode');
         return;
     }
 
-    MessageTray.MessageTray.prototype._showTray = myShowTray;
-    MessageTray.MessageTray.prototype._updateShowingNotification =
-        myUpdateShowingNotification;
-    MessageTray.MessageTray.prototype._onNotificationExpanded =
-        myOnNotificationExpanded;
     WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
         myShowWorkspaceSwitcher;
 
@@ -1556,11 +1404,6 @@ function disable() {
 
     global.screen.override_workspace_layout(Meta.ScreenCorner.TOPLEFT, false, -1, 1);
 
-    MessageTray.MessageTray.prototype._showTray = origShowTray;
-    MessageTray.MessageTray.prototype._updateShowingNotification =
-        origUpdateShowingNotification;
-    MessageTray.MessageTray.prototype._onNotificationExpanded =
-        origOnNotificationExpanded;
     WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
         origShowWorkspaceSwitcher;
 

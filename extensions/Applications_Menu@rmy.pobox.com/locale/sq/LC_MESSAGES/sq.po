@@ -21,9 +21,3 @@ msgstr "Ikona"
 msgid "Text"
 msgstr "Teksti"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Mbyll"
-

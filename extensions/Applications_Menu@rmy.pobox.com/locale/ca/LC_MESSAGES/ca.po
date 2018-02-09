@@ -32,21 +32,3 @@ msgstr "Icona"
 msgid "Text"
 msgstr "Text"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Tanca"
-
-#  "To terminate abruptly a processing activity in a computer system because it is impossible or undesirable for the activity to procees."
-
-# Antialising està acceptat pel termcat
-
-#  "A computer system equipped with one or more modems or other means of network access that serves as an information and message-passing center for remote users. "
-
-#  "To establish connection that uses the public switched telephone network rather than a dedicated circuit or some other type of private network."
-
-# La definició és incorrecta! 
-
-#  "English Definition"
-

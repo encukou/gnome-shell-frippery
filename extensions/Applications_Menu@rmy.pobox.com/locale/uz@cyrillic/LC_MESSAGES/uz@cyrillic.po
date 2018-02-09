@@ -21,9 +21,3 @@ msgstr "Нишонча"
 msgid "Text"
 msgstr "Матн"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Ёпиш"
-

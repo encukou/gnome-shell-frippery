@@ -24,11 +24,3 @@ msgstr "Икона"
 msgid "Text"
 msgstr "текст, садржај"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Затворити, завршити"
-
-# Kako ovo moze biti jednina??????
-

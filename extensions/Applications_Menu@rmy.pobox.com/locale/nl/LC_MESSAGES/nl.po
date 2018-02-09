@@ -22,32 +22,3 @@ msgstr "Pictogram"
 msgid "Text"
 msgstr "Tekst"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Sluiten"
-
-# was vinkknop
-
-# moeten we dit vertalen?
-# combinatiebox/combiknop
-
-# bureabladachtergrond/achtergrond bureablad
-
-# Doel
-
-# kan ook station zijn igv CD-schrijver
-
-# toetsenindeling beheer
-
-# menu-onderdeel
-
-# balk/kader/venster
-# (zijbalk/zijkader)
-
-# stapjes/stappen
-
-# zwevende tip/werktip/uitlegtip/tooltip
-# bij discussie vonden veel mensen 'zwevende tip' mooi
-

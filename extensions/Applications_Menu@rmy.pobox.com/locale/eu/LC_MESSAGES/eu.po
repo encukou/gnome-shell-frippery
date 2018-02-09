@@ -24,9 +24,3 @@ msgstr "Ikono"
 msgid "Text"
 msgstr "Testu"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Itxi"
-

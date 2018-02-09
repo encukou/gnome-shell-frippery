@@ -1,3 +1,4 @@
+# #########################################################################
 # Ini bukan istilah rasmi yang diiktiraf oleh DBP.
 # Ini hanyalah piawai istilah sementara yang digunakan untuk lokalisasi
 # Perisian-perisian  Bahasa Melayu. 
@@ -5,6 +6,7 @@
 # Sila baca, perhati dan komen jika perlu     
 # terdapat banyak lagi istilah yang tidak pasti oleh itu, 
 # sila cadangkan apa yang patut ditukar.
+# #############################################
 # Copyright (C) 2001-2003 Free Software Foundation, Inc.
 # Hasbullah Bin Pit <sebol@ikhlas.com>, 2001-2003.
 #
@@ -26,26 +28,4 @@ msgstr "Ikon"
 
 msgid "Text"
 msgstr "Teks"
-
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Tutup"
-
-# Jahaman?
-
-# petimel? petisurat?
-
-# tengok buku fizik
-
-# tutup rasanya tak sesuai kerana dianggap 'close'
-
-# pintar?
-
-# acuan?
-
-# rujuk buku statistik
-
-# nugget? hehehe
 

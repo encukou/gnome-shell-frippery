@@ -32,34 +32,3 @@ msgstr "สัญลักษ์"
 msgid "Text"
 msgstr "ข้อความ"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "ปิด"
-
-# none of msgstr is good
-
-# ยืนยัน sounds more like "maintain"
-
-# If it's programming term, leave it in English
-
-# should we use แฟ้ม for "folder, directory"?
-
-# ช่วยด้วย seems to be best for "Help" menu
-
-# ช่วงเวลา -- the time inteween\n ระยะเวลา -- the length of the time
-
-#  ไม่ถูกต้อง sounds like "valid but wrong""
-
-# ข้อมูลเมตา sounds quite strange
-
-# lets use เปลี่ยนแปลง for "modify".  แก้ไข for "edit"
-
-# Try to convert the sentence to use verb "notice"
-
-# Is ความเข้ม the same as Contrast?
-# Should translate "hue, contrast, saturation, brightness" at the same time
-
-# หยุด sounds like it could be a temporary stop
-

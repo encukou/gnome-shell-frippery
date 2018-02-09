@@ -21,17 +21,3 @@ msgstr "Ikon"
 msgid "Text"
 msgstr "Tekst"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Lukk"
-
-# panel/applet.c:481
-
-# gtk/gtkfontsel.c:1215
-
-# help-browser/bookmarks.c:242
-
-# help-browser/history.c:260
-

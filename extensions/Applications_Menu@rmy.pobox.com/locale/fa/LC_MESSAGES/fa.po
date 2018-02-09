@@ -21,9 +21,3 @@ msgstr "شمایل"
 msgid "Text"
 msgstr "متن"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "بستن"
-

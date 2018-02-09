@@ -23,9 +23,3 @@ msgstr "ხატულა"
 msgid "Text"
 msgstr "ტექსტი"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr ""
-

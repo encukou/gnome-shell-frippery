@@ -21,9 +21,3 @@ msgstr "Піктограма"
 msgid "Text"
 msgstr "Текст"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Закрити"
-

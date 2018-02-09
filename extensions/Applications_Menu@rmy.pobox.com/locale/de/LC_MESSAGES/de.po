@@ -22,11 +22,3 @@ msgstr "Symbol"
 msgid "Text"
 msgstr "Text"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "schließen"
-
-# CHECK - taken from MC, maybe wrong
-

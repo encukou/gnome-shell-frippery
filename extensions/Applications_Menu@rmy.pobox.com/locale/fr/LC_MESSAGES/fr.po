@@ -23,9 +23,3 @@ msgstr "Icône"
 msgid "Text"
 msgstr "Texte"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Fermer"
-

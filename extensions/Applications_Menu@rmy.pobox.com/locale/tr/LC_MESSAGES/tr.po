@@ -21,9 +21,3 @@ msgstr "Simge"
 msgid "Text"
 msgstr "Metin"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Kapatmak"
-

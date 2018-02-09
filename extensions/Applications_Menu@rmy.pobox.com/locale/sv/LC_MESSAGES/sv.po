@@ -24,30 +24,3 @@ msgstr "Ikon"
 msgid "Text"
 msgstr "Text"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Stäng"
-
-# Osäker!
-
-# jag antar att detta är etikett för "progress bar"
-
-# Osäker på denna
-
-# Osäker!
-
-# får plats
-
-# Osäker!
-
-# ?
-# får plats
-
-# Osäker!
-
-# Osäker!
-
-# ?
-

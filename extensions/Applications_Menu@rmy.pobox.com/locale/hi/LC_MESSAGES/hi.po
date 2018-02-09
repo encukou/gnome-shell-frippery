@@ -24,11 +24,3 @@ msgstr "प्रतीक"
 msgid "Text"
 msgstr "पाठ, पाठ"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "बंद करें"
-
-#  "A disk drive mechanism for moving the read/write head(s) to the location of the desired track on a disk. "
-

@@ -24,21 +24,3 @@ msgstr "Ícone"
 msgid "Text"
 msgstr "Texto"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "Fechar"
-
-# Ai ai. Em português nós mostramos datas no calendário, mas marcamos compromissos na agenda. Escolha de acordo com a sua aplicação.
-
-# Talvez seja melhor usar: falha de programa e falha do disco...
-
-# Apresentação de dados: exibição. Dispositivo de saída: tela.
-
-# Esta palavra não existe em inglês! :)
-
-# Se for o computador como diz o comentário, então é "reiniciar".
-
-# A tabulação pode continar sendo chamada de "tab", mas "aba" é melhor para aplicações MDI.
-

@@ -21,9 +21,3 @@ msgstr "图标"
 msgid "Text"
 msgstr "文字"
 
-msgid "Hot corner"
-msgstr ""
-
-msgid "Close"
-msgstr "关闭"
-
