@@ -30,6 +30,7 @@
     border: 1px;
     border-color: #ccc;
     padding: 2px;
+    font-family: monospace;
 }
 
 .workspace-button:outlined {

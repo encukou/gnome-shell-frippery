@@ -878,20 +878,21 @@ const WorkspaceButton = new Lang.Class({
         this.index = index;
 
         let active = global.screen.get_active_workspace_index();
+        let ws_name = Meta.prefs_get_workspace_name(index);
 
         if ( index == active ) {
-            this.label.set_text('-' + (index+1).toString() + '-');
+            this.label.set_text(ws_name.toUpperCase());
             this.actor.add_style_pseudo_class('outlined');
         }
         else if ( index < global.screen.n_workspaces ) {
-            this.label.set_text((index+1).toString());
+            this.label.set_text(ws_name);
             this.actor.remove_style_pseudo_class('outlined');
         }
         else {
             this.label.set_text('');
             this.actor.remove_style_pseudo_class('outlined');
         }
-        this.tooltip.set_text(Meta.prefs_get_workspace_name(index));
+        this.tooltip.set_text(ws_name);
     }
 });
 
