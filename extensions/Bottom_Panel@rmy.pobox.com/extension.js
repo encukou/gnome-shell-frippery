@@ -897,7 +897,12 @@ const WorkspaceButton = new Lang.Class({
         if (this._ws === null) {
             this.actor.remove_style_pseudo_class('has-windows');
         } else {
-            let windows = this._ws.list_windows();
+            let windows = this._ws.list_windows().filter(function(metaWindow) {
+                return metaWindow.is_on_primary_monitor() &&
+                   metaWindow.showing_on_its_workspace() &&
+                   metaWindow.get_window_type() != Meta.WindowType.DESKTOP;
+            });
+
             if ( windows.length > 0 ) {
                 this.actor.add_style_pseudo_class('has-windows');
             } else {
