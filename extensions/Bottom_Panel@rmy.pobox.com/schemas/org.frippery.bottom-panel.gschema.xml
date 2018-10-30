@@ -6,6 +6,11 @@
       <summary>Number of rows of workspaces</summary>
       <description>Number of rows of workspaces.  May only be between 1 and 5.</description>
     </key>
+    <key name="enable-panel" type="b">
+      <default>true</default>
+      <summary>Enable panel workspace</summary>
+      <description>If false the panel will not be shown on any workspace.</description>
+    </key>
     <key name="show-panel" type="ab">
       <default>[]</default>
       <summary>Show panel on workspace</summary>

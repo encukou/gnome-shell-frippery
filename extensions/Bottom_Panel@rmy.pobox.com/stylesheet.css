@@ -93,12 +93,10 @@
 .bottom-panel-tooltip {
     border-radius: 7px;
     padding: 4px 12px;
-    background-color: rgba(0,0,0,0.9);
+    background-color: rgba(24,24,24,0.8);
     text-align: center;
     color: white;
-    font-size: 9pt;
-    font-weight: bold;
-    -y-offset: 4px;
+    -y-offset: 6px;
 }
 
 .workspace-dialog-table {

@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2017 R M Yorston
+// Copyright (C) 2011-2018 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -30,12 +30,15 @@ const BOTTOM_PANEL_TOOLTIP_SHOW_TIME = 0.15;
 const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
 const BOTTOM_PANEL_HOVER_TIMEOUT = 300;
 
-const OVERRIDES_SCHEMA = 'org.gnome.shell.overrides';
+const OVERRIDES_SCHEMA = 'org.gnome.mutter';
 
 const SETTINGS_NUM_ROWS = 'num-rows';
+const SETTINGS_ENABLE_PANEL = 'enable-panel';
 const SETTINGS_SHOW_PANEL = 'show-panel';
 
 let show_panel = [];
+let enable_panel = true;
+let save_wsdata = [];
 
 /*
  * This is a base class for containers that manage the tooltips of their
@@ -235,8 +238,8 @@ const WindowListItemMenu = new Lang.Class({
     },
 
     _buildWorkspaceSubMenu: function(submenu) {
-        for ( let j=0; j<global.screen.n_workspaces; ++j ) {
-            let active = global.screen.get_active_workspace_index();
+        for ( let j=0; j<global.workspace_manager.n_workspaces; ++j ) {
+            let active = global.workspace_manager.get_active_workspace_index();
             let item = new PopupMenu.PopupMenuItem(
                             Meta.prefs_get_workspace_name(j));
             item.index = j;
@@ -273,10 +276,11 @@ const WindowListItemMenu = new Lang.Class({
             this.itemStickyWindow.setOrnament(PopupMenu.Ornament.NONE);
         }
 
-        let ws1 = global.screen.get_active_workspace();
+        let ws1 = global.workspace_manager.get_active_workspace();
 
         for ( let i=0; i<this.itemMove.length; ++i ) {
-            let ws2 = ws1.get_neighbor(this.itemMove[i].direction);
+            //let ws2 = ws1.get_neighbor(this.itemMove[i].direction);
+            let ws2 = get_neighbour(ws1, this.itemMove[i].direction);
             if ( ws1 != ws2 ) {
                 this.itemMove[i].actor.show();
             }
@@ -286,7 +290,7 @@ const WindowListItemMenu = new Lang.Class({
         }
 
         if ( this.workspaceSubMenu.numMenuItems !=
-                global.screen.n_workspaces ) {
+                global.workspace_manager.n_workspaces ) {
             this.workspaceSubMenu.removeAll();
             this._buildWorkspaceSubMenu(this.workspaceSubMenu);
         }
@@ -337,16 +341,17 @@ const WindowListItemMenu = new Lang.Class({
     },
 
     _onMoveWindowActivate: function(item, event) {
-        let ws1 = global.screen.get_active_workspace();
-        let ws2 = ws1.get_neighbor(item.direction);
+        let ws1 = global.workspace_manager.get_active_workspace();
+        //let ws2 = ws1.get_neighbor(item.direction);
+        let ws2 = get_neighbour(ws1, item.direction);
         if ( ws2 && ws1 != ws2 ) {
             this.metaWindow.change_workspace(ws2);
         }
     },
 
     _onMoveToActivate: function(item, event) {
-        let ws1 = global.screen.get_active_workspace();
-        let ws2 = global.screen.get_workspace_by_index(item.index);
+        let ws1 = global.workspace_manager.get_active_workspace();
+        let ws2 = global.workspace_manager.get_workspace_by_index(item.index);
         if ( ws2 && ws1 != ws2 ) {
             this.metaWindow.change_workspace(ws2);
         }
@@ -361,8 +366,11 @@ const WindowListItem = new Lang.Class({
     Name: 'WindowListItem',
     Extends: TooltipChild,
 
-    _init: function(app, metaWindow) {
+    _init: function(myWindowList, app, metaWindow) {
         this.parent();
+
+        this.metaWindow = metaWindow;
+        this.myWindowList = myWindowList;
 
         this.actor = new St.Bin({ reactive: true,
                                   track_hover: true,
@@ -378,7 +386,6 @@ const WindowListItem = new Lang.Class({
         this.actor.label_actor = this.tooltip;
 
         this._itemBox = new St.BoxLayout({style_class: 'window-list-item-box'});
-        this.metaWindow = metaWindow;
         this.actor.add_actor(this._itemBox);
 
         this.icon = app ? app.create_icon_texture(16) :
@@ -408,10 +415,16 @@ const WindowListItem = new Lang.Class({
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
         this.actor.connect('button-press-event',
                                     Lang.bind(this, this._onButtonPress));
+        this.actor.connect('button-release-event',
+                                    Lang.bind(this, this._onButtonRelease));
         this.actor.connect('allocation-changed',
                                     Lang.bind(this, this._updateIconGeometry));
 
         this._onFocus();
+    },
+
+    _getIndex: function() {
+        return this.myWindowList._windows.indexOf(this);
     },
 
     _onTitleChanged: function() {
@@ -444,20 +457,45 @@ const WindowListItem = new Lang.Class({
 
     _onButtonPress: function(actor, event) {
         let button = event.get_button();
+
         if ( this.rightClickMenu.isOpen ) {
             this.rightClickMenu.close();
         }
-        else if ( button == 1 ) {
-            if ( this.metaWindow.has_focus() ) {
-                this.metaWindow.minimize(global.get_current_time());
-            }
-            else {
-                this.metaWindow.activate(global.get_current_time());
-            }
+        else if ( !this.rightClickMenu.isOpen && button == 1 ) {
+            // start dragging
+            this.myWindowList.dragIndex = this._getIndex();
         }
         else if ( button == 3 ) {
             this.hideTooltip();
             this.rightClickMenu.open();
+        }
+    },
+
+    _onButtonRelease: function(actor, event) {
+        let button = event.get_button();
+
+        if ( button == 1 ) {
+            // do not drag if same window list item
+            if ( this._getIndex() == this.myWindowList.dragIndex ) {
+                if ( this.metaWindow.has_focus() ) {
+                    this.metaWindow.minimize();
+                }
+                else {
+                    this.metaWindow.activate(global.get_current_time());
+                }
+            }
+            else {
+                // perform drag
+                let index = global.workspace_manager.get_active_workspace().index();
+                let windowSeq = this.myWindowList._wsdata[index].windowSeq;
+
+                let value = windowSeq[this.myWindowList.dragIndex];
+                windowSeq.splice(this.myWindowList.dragIndex, 1);
+                windowSeq.splice(this._getIndex(), 0, value);
+
+                this.myWindowList._refreshItems();
+            }
+            this.myWindowList.dragIndex = -1;
         }
     },
 
@@ -498,15 +536,17 @@ const WindowList = new Lang.Class({
                                         style_class: 'window-list-box' });
         this.actor._delegate = this;
         this._windows = [];
+        this.dragIndex = -1;
 
         this._onSwitchWorkspaceId = global.window_manager.connect(
                                         'switch-workspace',
                                         Lang.bind(this, this._refreshItems));
 
-        this._workspaces = [];
+        this._wsdata = save_wsdata;
         this._changeWorkspaces();
 
-        this._onNWorkspacesId = global.screen.connect('notify::n-workspaces',
+        this._onNWorkspacesId = global.workspace_manager.connect(
+                                'notify::n-workspaces',
                                 Lang.bind(this, this._changeWorkspaces));
 
         this._menuManager = new PopupMenu.PopupMenuManager(this);
@@ -529,7 +569,7 @@ const WindowList = new Lang.Class({
             let tracker = Shell.WindowTracker.get_default();
             let app = tracker.get_window_app(metaWindow);
             if ( app ) {
-                let item = new WindowListItem(app, metaWindow);
+                let item = new WindowListItem(this, app, metaWindow);
                 this._windows.push(item);
                 this.actor.add(item.actor);
                 item.actor.connect('notify::hover',
@@ -542,13 +582,43 @@ const WindowList = new Lang.Class({
     },
 
     _refreshItems: function() {
+        let i, j;
+
         this.actor.destroy_all_children();
         this._windows = [];
 
-        let metaWorkspace = global.screen.get_active_workspace();
-        let windows = metaWorkspace.list_windows();
+        let metaWorkspace = global.workspace_manager.get_active_workspace();
+        let windows = metaWorkspace.list_windows().filter(function(metaWindow) {
+            return metaWindow.get_window_type() != Meta.WindowType.DESKTOP;
+        });
+        let index = metaWorkspace.index();
+        let windowSeq = this._wsdata[index].windowSeq;
+
+        // add sequence numbers for any windows we don't know about
+        for ( i=0; i < windows.length; ++i ) {
+            let seqi = windows[i].get_stable_sequence();
+            if ( windowSeq.indexOf(seqi) == -1 ) {
+                windowSeq.push(seqi);
+            }
+        }
+
+        // remove sequence numbers that don't correspond to a window
+        for ( j=windowSeq.length-1; j >= 0; --j ) {
+            for ( i=0; i < windows.length; ++i ) {
+                if ( windowSeq[j] == windows[i].get_stable_sequence() ) {
+                    break;
+                }
+            }
+            if ( i == windows.length ) {
+                windowSeq.splice(j, 1);
+            }
+        }
+
+        // sort windows by position in windowSeq array
         windows.sort(function(w1, w2) {
-            return w1.get_stable_sequence() - w2.get_stable_sequence();
+            let i1 = windowSeq.indexOf(w1.get_stable_sequence());
+            let i2 = windowSeq.indexOf(w2.get_stable_sequence());
+            return i1 - i2;
         });
 
         // Create list items for each window
@@ -558,7 +628,11 @@ const WindowList = new Lang.Class({
     },
 
     _windowAdded: function(metaWorkspace, metaWindow) {
-        if ( metaWorkspace.index() != global.screen.get_active_workspace_index() ) {
+        let index = metaWorkspace.index();
+        let seq = metaWindow.get_stable_sequence();
+        this._wsdata[index].windowSeq.push(seq);
+
+        if ( index != global.workspace_manager.get_active_workspace_index() ) {
             return;
         }
 
@@ -572,7 +646,16 @@ const WindowList = new Lang.Class({
     },
 
     _windowRemoved: function(metaWorkspace, metaWindow) {
-        if ( metaWorkspace.index() != global.screen.get_active_workspace_index() ) {
+        let index = metaWorkspace.index();
+        let seq = metaWindow.get_stable_sequence();
+        let windowSeq = this._wsdata[index].windowSeq;
+
+        let j = windowSeq.indexOf(seq);
+        if ( j != -1 ) {
+            windowSeq.splice(j, 1);
+        }
+
+        if ( index != global.workspace_manager.get_active_workspace_index() ) {
             return;
         }
 
@@ -586,47 +669,104 @@ const WindowList = new Lang.Class({
         }
     },
 
+    _disconnectCallbacks: function() {
+        for ( let i=0;
+                i<this._wsdata.length &&
+                    i<global.workspace_manager.n_workspaces;
+                ++i ) {
+            let wd = this._wsdata[i];
+            let ws = global.workspace_manager.get_workspace_by_index(i);
+
+            if (wd.windowAddedId)
+                ws.disconnect(wd.windowAddedId);
+            if (wd.windowRemovedId)
+                ws.disconnect(wd.windowRemovedId);
+
+            wd.windowAddedId = 0;
+            wd.windowRemovedId = 0;
+        }
+    },
+
     _changeWorkspaces: function() {
-        for ( let i=0; i<this._workspaces.length; ++i ) {
-            let ws = this._workspaces[i];
-            ws.disconnect(ws._windowAddedId);
-            ws.disconnect(ws._windowRemovedId);
+        this._disconnectCallbacks();
+
+        // truncate arrays to number of workspaces
+        if ( this._wsdata.length > global.workspace_manager.n_workspaces ) {
+            this._wsdata.length = global.workspace_manager.n_workspaces;
         }
 
-        this._workspaces = [];
-        for ( let i=0; i<global.screen.n_workspaces; ++i ) {
-            let ws = global.screen.get_workspace_by_index(i);
-            this._workspaces[i] = ws;
-            ws._windowAddedId = ws.connect('window-added',
-                                    Lang.bind(this, this._windowAdded));
-            ws._windowRemovedId = ws.connect('window-removed',
-                                    Lang.bind(this, this._windowRemoved));
+        if ( show_panel.length > global.workspace_manager.n_workspaces ) {
+            show_panel.length = global.workspace_manager.n_workspaces;
+        }
+
+        for ( let i=0; i<global.workspace_manager.n_workspaces; ++i ) {
+            // add data for new workspaces
+            if ( i >= this._wsdata.length ) {
+                this._wsdata[i] = {};
+                this._wsdata[i].windowSeq = [];
+            }
+
             if ( i >= show_panel.length ) {
                 show_panel[i] = true;
             }
+
+            let ws = global.workspace_manager.get_workspace_by_index(i);
+            this._wsdata[i].windowAddedId = ws.connect('window-added',
+                                    Lang.bind(this, this._windowAdded));
+            this._wsdata[i].windowRemovedId = ws.connect('window-removed',
+                                    Lang.bind(this, this._windowRemoved));
         }
     },
 
     _onDestroy: function() {
-        for ( let i=0; i<this._workspaces.length; ++i ) {
-            let ws = this._workspaces[i];
-            ws.disconnect(ws._windowAddedId);
-            ws.disconnect(ws._windowRemovedId);
-        }
-
+        this._disconnectCallbacks();
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
-        global.screen.disconnect(this._onNWorkspacesId);
+        global.workspace_manager.disconnect(this._onNWorkspacesId);
+        save_wsdata = this._wsdata;
     }
 });
 
 let nrows = 1;
 
 function get_ncols() {
-    let ncols = Math.floor(global.screen.n_workspaces/nrows);
-    if ( global.screen.n_workspaces%nrows != 0 )
+    let ncols = Math.floor(global.workspace_manager.n_workspaces/nrows);
+    if ( global.workspace_manager.n_workspaces%nrows != 0 )
        ++ncols
 
     return ncols;
+}
+
+/*
+ * There's a bug in mutter which results in get_neighbor returning the
+ * wrong workspace:
+ *
+ *   https://gitlab.gnome.org/GNOME/mutter/issues/270
+ *
+ * Implement a workaround.
+ */
+function get_neighbour(workspace, direction) {
+    let ncols = get_ncols();
+    let index = workspace.index();
+
+    if (direction == Meta.MotionDirection.LEFT) {
+        if (index%ncols != 0)
+            --index;
+    }
+    else if (direction == Meta.MotionDirection.RIGHT) {
+        if (index%ncols != ncols-1)
+            ++index;
+    }
+    else if (direction == Meta.MotionDirection.UP) {
+        if (index/ncols != 0)
+           index -= ncols;
+    }
+    else if (direction == Meta.MotionDirection.DOWN) {
+        if (index/ncols != nrows-1)
+           index += ncols;
+    }
+
+    let newWs = global.workspace_manager.get_workspace_by_index(index);
+    return newWs ? newWs : workspace;
 }
 
 const ToggleSwitch = new Lang.Class({
@@ -696,6 +836,33 @@ const DynamicWorkspacesSwitch = new Lang.Class({
     }
 });
 
+const EnablePanelSwitch = new Lang.Class({
+    Name: 'EnablePanelSwitch',
+    Extends: ToggleSwitch,
+
+    _init: function(dialog) {
+        this._dialog = dialog;
+        this._settings = Convenience.getSettings();
+        let state = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
+
+        this.parent(state);
+    },
+
+    updateState: function() {
+        this.setToggleState(this._settings.get_boolean(SETTINGS_ENABLE_PANEL));
+    },
+
+    toggle: function() {
+        this.parent();
+        this._settings.set_boolean(SETTINGS_ENABLE_PANEL, this.state);
+
+        for ( let i=0; i<this._dialog.cb.length; ++i ) {
+            this._dialog.cb[i].actor.reactive = this.state;
+            this._dialog.cb[i].actor.can_focus = this.state;
+        }
+    }
+});
+
 const WorkspaceDialog = new Lang.Class({
     Name: 'WorkspaceDialog',
     Extends: ModalDialog.ModalDialog,
@@ -738,8 +905,15 @@ const WorkspaceDialog = new Lang.Class({
         layout.pack(this._dynamicWorkspaces.actor, 1, 2);
 
         label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Panel visible in workspace') });
+                                   text: _f('Enable panel') });
         layout.pack(label, 0, 3);
+
+        this._enablePanel = new EnablePanelSwitch(this);
+        layout.pack(this._enablePanel.actor, 1, 3);
+
+        label = new St.Label({ style_class: 'workspace-dialog-label',
+                                   text: _f('Panel visible in workspace') });
+        layout.pack(label, 0, 4);
         layout.child_set(label, { column_span: 2 });
 
         let cblayout = new Clutter.TableLayout();
@@ -752,22 +926,15 @@ const WorkspaceDialog = new Lang.Class({
         for ( let r=0; r<nrows; ++r ) {
             for ( let c=0; c<ncols; ++c ) {
                 let i = r*ncols + c;
-                if ( i < global.screen.n_workspaces ) {
+                if ( i < global.workspace_manager.n_workspaces ) {
                     this.cb[i] = new CheckBox.CheckBox();
-                    if ( i == 0 ) {
-                        this.cb[i].actor.checked = true;
-                        this.cb[i].actor.reactive = false;
-                        this.cb[i].actor.can_focus = false;
-                    }
-                    else {
-                        this.cb[i].actor.checked = show_panel[i];
-                    }
+                    this.cb[i].actor.checked = show_panel[i];
                     cblayout.pack(this.cb[i].actor, c, r);
                     cblayout.child_set(this.cb[i].actor, { x_fill: false });
                 }
             }
         }
-        layout.pack(cbtable, 0, 4);
+        layout.pack(cbtable, 0, 5);
         layout.child_set(cbtable, { column_span: 2 });
 
         let buttons = [{ action: Lang.bind(this, this.close),
@@ -783,7 +950,7 @@ const WorkspaceDialog = new Lang.Class({
     },
 
     open: function() {
-        this._workspaceEntry.set_text(''+global.screen.n_workspaces);
+        this._workspaceEntry.set_text(''+global.workspace_manager.n_workspaces);
         this._rowEntry.set_text(''+nrows);
         this._dynamicWorkspaces.updateState();
 
@@ -791,6 +958,7 @@ const WorkspaceDialog = new Lang.Class({
     },
 
     _updateValues: function() {
+        let settings = Convenience.getSettings();
         let changed = false;
         for ( let i=0; i<this.cb.length; ++i ) {
             if ( show_panel[i] != this.cb[i].actor.checked ) {
@@ -801,22 +969,22 @@ const WorkspaceDialog = new Lang.Class({
 
         if ( changed ) {
             let value = GLib.Variant.new('ab', show_panel);
-            bottomPanel._settings.set_value(SETTINGS_SHOW_PANEL, value);
+            settings.set_value(SETTINGS_SHOW_PANEL, value);
         }
 
         let num = parseInt(this._workspaceEntry.get_text());
         if ( !isNaN(num) && num >= 2 && num <= 32 ) {
-            let old_num = global.screen.n_workspaces;
+            let old_num = global.workspace_manager.n_workspaces;
             if ( num > old_num ) {
                 for ( let i=old_num; i<num; ++i ) {
-                    global.screen.append_new_workspace(false,
+                    global.workspace_manager.append_new_workspace(false,
                             global.get_current_time());
                 }
             }
             else if ( num < old_num ) {
                 for ( let i=old_num-1; i>=num; --i ) {
-                    let ws = global.screen.get_workspace_by_index(i);
-                    global.screen.remove_workspace(ws,
+                    let ws = global.workspace_manager.get_workspace_by_index(i);
+                    global.workspace_manager.remove_workspace(ws,
                             global.get_current_time());
                 }
             }
@@ -826,7 +994,7 @@ const WorkspaceDialog = new Lang.Class({
         if ( !isNaN(rows) && rows > 0 && rows < 6 && rows != nrows ) {
             if ( rows != nrows ) {
                 nrows = rows;
-                bottomPanel._settings.set_int(SETTINGS_NUM_ROWS, nrows);
+                settings.set_int(SETTINGS_NUM_ROWS, nrows);
             }
         }
     }
@@ -858,8 +1026,9 @@ const WorkspaceButton = new Lang.Class({
     },
 
     _onClicked: function() {
-        if ( this.index >= 0 && this.index < global.screen.n_workspaces ) {
-            let metaWorkspace = global.screen.get_workspace_by_index(this.index);
+        if ( this.index >= 0 &&
+                this.index < global.workspace_manager.n_workspaces ) {
+            let metaWorkspace = global.workspace_manager.get_workspace_by_index(this.index);
             metaWorkspace.activate(global.get_current_time());
         }
 
@@ -871,27 +1040,25 @@ const WorkspaceButton = new Lang.Class({
     },
 
     setIndex: function(index) {
-        if ( index < 0 || index >= global.screen.n_workspaces ) {
-            return;
-        }
-
-        this.index = index;
-
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
+        let tt_text = '';
 
         if ( index == active ) {
             this.label.set_text('-' + (index+1).toString() + '-');
             this.actor.add_style_pseudo_class('outlined');
+            tt_text = Meta.prefs_get_workspace_name(index);
         }
-        else if ( index < global.screen.n_workspaces ) {
+        else if (index >= 0 && index < global.workspace_manager.n_workspaces) {
             this.label.set_text((index+1).toString());
             this.actor.remove_style_pseudo_class('outlined');
+            tt_text = Meta.prefs_get_workspace_name(index);
         }
         else {
             this.label.set_text('');
             this.actor.remove_style_pseudo_class('outlined');
         }
-        this.tooltip.set_text(Meta.prefs_get_workspace_name(index));
+        this.tooltip.set_text(tt_text);
+        this.index = index;
     }
 });
 
@@ -912,7 +1079,8 @@ const WorkspaceSwitcher = new Lang.Class({
         this.button = [];
         this._createButtons();
 
-        this._onNWorkspacesId = global.screen.connect('notify::n-workspaces',
+        this._onNWorkspacesId = global.workspace_manager.connect(
+                                'notify::n-workspaces',
                                 Lang.bind(this, this._createButtons));
         this._onSwitchWorkspaceId = global.window_manager.connect(
                                 'switch-workspace',
@@ -934,7 +1102,7 @@ const WorkspaceSwitcher = new Lang.Class({
         }
 
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
         let index = row*ncols;
@@ -948,13 +1116,13 @@ const WorkspaceSwitcher = new Lang.Class({
             this.button[i] = btn;
         }
 
-        global.screen.override_workspace_layout(Meta.ScreenCorner.TOPLEFT,
+        global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
                 false, nrows, ncols);
     },
 
     _updateButtons: function() {
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
         let index = row*ncols;
@@ -979,8 +1147,8 @@ const WorkspaceSwitcher = new Lang.Class({
     _onScroll: function(actor, event) {
         let direction = event.get_scroll_direction();
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
-        let index = global.screen.n_workspaces;
+        let active = global.workspace_manager.get_active_workspace_index();
+        let index = global.workspace_manager.n_workspaces;
 
         if ( direction == Clutter.ScrollDirection.UP ) {
             if ( active%ncols > 0 ) {
@@ -988,14 +1156,14 @@ const WorkspaceSwitcher = new Lang.Class({
             }
         }
         if ( direction == Clutter.ScrollDirection.DOWN ) {
-            if ( active < global.screen.n_workspaces-1 &&
+            if ( active < global.workspace_manager.n_workspaces-1 &&
                          active%ncols != ncols-1 ) {
                 index = active+1;
             }
         }
 
-        if ( index >= 0 && index < global.screen.n_workspaces ) {
-            let metaWorkspace = global.screen.get_workspace_by_index(index);
+        if ( index >= 0 && index < global.workspace_manager.n_workspaces ) {
+            let metaWorkspace = global.workspace_manager.get_workspace_by_index(index);
             metaWorkspace.activate(global.get_current_time());
         }
 
@@ -1008,7 +1176,7 @@ const WorkspaceSwitcher = new Lang.Class({
         }
 
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
         let [x, y] = event.get_coords();
@@ -1017,13 +1185,13 @@ const WorkspaceSwitcher = new Lang.Class({
         y -= wy;
 
         let new_row = Math.floor(nrows*y/h);
-        let index = global.screen.n_workspaces;
+        let index = global.workspace_manager.n_workspaces;
         if ( new_row != row ) {
             index = new_row*ncols + active%ncols;
         }
 
-        if ( index >= 0 && index < global.screen.n_workspaces ) {
-            let metaWorkspace = global.screen.get_workspace_by_index(index);
+        if ( index >= 0 && index < global.workspace_manager.n_workspaces ) {
+            let metaWorkspace = global.workspace_manager.get_workspace_by_index(index);
             metaWorkspace.activate(global.get_current_time());
         }
 
@@ -1033,10 +1201,10 @@ const WorkspaceSwitcher = new Lang.Class({
     _rowScroll: function(actor, event) {
         let direction = event.get_scroll_direction();
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
-        let index = global.screen.n_workspaces;
+        let index = global.workspace_manager.n_workspaces;
         if ( direction == Clutter.ScrollDirection.DOWN ) {
             index = (row+1)*ncols + active%ncols;
         }
@@ -1044,8 +1212,8 @@ const WorkspaceSwitcher = new Lang.Class({
             index = (row-1)*ncols + active%ncols;
         }
 
-        if ( index >= 0 && index < global.screen.n_workspaces ) {
-            let metaWorkspace = global.screen.get_workspace_by_index(index);
+        if ( index >= 0 && index < global.workspace_manager.n_workspaces ) {
+            let metaWorkspace = global.workspace_manager.get_workspace_by_index(index);
             metaWorkspace.activate(global.get_current_time());
         }
 
@@ -1061,7 +1229,7 @@ const WorkspaceSwitcher = new Lang.Class({
         let inactive_color = themeNode.get_color('-inactive-color');
 
         let ncols = get_ncols();
-        let active = global.screen.get_active_workspace_index();
+        let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
         for ( let i=0; i<nrows; ++i ) {
@@ -1076,7 +1244,7 @@ const WorkspaceSwitcher = new Lang.Class({
     },
 
     _onDestroy: function() {
-        global.screen.disconnect(this._onNWorkspacesId);
+        global.workspace_manager.disconnect(this._onNWorkspacesId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
     }
 });
@@ -1092,10 +1260,11 @@ const BottomPanel = new Lang.Class({
             nrows = rows;
         }
 
+        enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
+
         let b = this._settings.get_value(SETTINGS_SHOW_PANEL).deep_unpack();
         if ( b.length > 1 ) {
-            show_panel[0] = true;
-            for ( let i=1; i<b.length; ++i ) {
+            for ( let i=0; i<b.length; ++i ) {
                 show_panel[i] = b[i];
             }
         }
@@ -1118,9 +1287,10 @@ const BottomPanel = new Lang.Class({
 
         this.actor.connect('style-changed', Lang.bind(this, this.relayout));
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
-		this.actor.connect('allocation-changed', Lang.bind(this, this._updateSolidStyle));
+        this.actor.connect('allocation-changed', Lang.bind(this, this._updateSolidStyle));
 
-        this._monitorsChangedId = global.screen.connect('monitors-changed',
+        let monitorManager = Meta.MonitorManager.get();
+        this._monitorsChangedId = monitorManager.connect('monitors-changed',
                 Lang.bind(this, this.relayout));
         this._sessionUpdatedId = Main.sessionMode.connect('updated',
                 Lang.bind(this, this._sessionUpdated));
@@ -1130,6 +1300,9 @@ const BottomPanel = new Lang.Class({
         this._numRowsChangedId = this._settings.connect(
                                    'changed::'+SETTINGS_NUM_ROWS,
                                    Lang.bind(this, this._numRowsChanged));
+        this._enablePanelChangedId = this._settings.connect(
+                                   'changed::'+SETTINGS_ENABLE_PANEL,
+                                   Lang.bind(this, this._enablePanelChanged));
         this._showPanelChangedId = this._settings.connect(
                                    'changed::'+SETTINGS_SHOW_PANEL,
                                    Lang.bind(this, this._showPanelChanged));
@@ -1170,8 +1343,8 @@ const BottomPanel = new Lang.Class({
         let bottom = Main.layoutManager.bottomMonitor;
 
         let h = this.actor.get_theme_node().get_height();
-        let active = global.screen.get_active_workspace_index();
-        if ( !show_panel[active] ) h = -h;
+        let active = global.workspace_manager.get_active_workspace_index();
+        if ( !enable_panel || !show_panel[active] ) h = -h;
         this.actor.set_position(bottom.x, bottom.y+bottom.height-h);
         this.actor.set_size(bottom.width, -1);
         this._updateSolidStyle();
@@ -1189,11 +1362,15 @@ const BottomPanel = new Lang.Class({
         }
     },
 
+    _enablePanelChanged: function() {
+        enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
+        this.relayout();
+    },
+
     _showPanelChanged: function() {
         let b = this._settings.get_value(SETTINGS_SHOW_PANEL).deep_unpack();
         if ( b.length > 1 ) {
-            show_panel[0] = true;
-            for ( let i=1; i<b.length; ++i ) {
+            for ( let i=0; i<b.length; ++i ) {
                 show_panel[i] = b[i];
             }
         }
@@ -1201,7 +1378,8 @@ const BottomPanel = new Lang.Class({
     },
 
     _onDestroy: function() {
-        global.screen.disconnect(this._monitorsChangedId);
+        let monitorManager = Meta.MonitorManager.get();
+        monitorManager.disconnect(this._monitorsChangedId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
         Main.sessionMode.disconnect(this._sessionUpdatedId);
 
@@ -1210,6 +1388,10 @@ const BottomPanel = new Lang.Class({
             this._numRowsChangedId = 0;
         }
 
+        if ( this._enablePanelChangedId != 0 ) {
+            this._settings.disconnect(this._enablePanelChangedId);
+            this._enablePanelChangedId = 0;
+        }
         if ( this._showPanelChangedId != 0 ) {
             this._settings.disconnect(this._showPanelChangedId);
             this._showPanelChangedId = 0;
@@ -1234,16 +1416,23 @@ const BottomPanel = new Lang.Class({
             global.window_group.disconnect(this._onWindowActorRemovedID);
             this._onWindowActorRemovedID = 0;
         }
+
+        for (var [actor, signalIds] of this._trackedWindows.entries()) {
+            signalIds.forEach(id => {
+                actor.disconnect(id);
+            });
+        }
+        this._trackedWindows = null;
     },
 
     _updateSolidStyle: function() {
         if (this.actor.has_style_pseudo_class('overview') || !Main.sessionMode.hasWindows) {
-            this._removeStyleClassName('solid');
+            this.actor.remove_style_class_name('solid');
             return;
         }
 
         /* Get all the windows in the active workspace that are in the primary monitor and visible */
-        let activeWorkspace = global.screen.get_active_workspace();
+        let activeWorkspace = global.workspace_manager.get_active_workspace();
         let windows = activeWorkspace.list_windows().filter(function(metaWindow) {
             return metaWindow.is_on_primary_monitor() &&
                    metaWindow.showing_on_its_workspace() &&
@@ -1341,6 +1530,8 @@ const FripperySwitcherPopup = new Lang.Class({
         for ( let ir=0; ir<nrows; ++ir ) {
             for ( let ic=0; ic<ncols; ++ic ) {
                 let i = ncols*ir + ic;
+                if (!children[i])
+                    continue;
                 let x = box.x1 + ic * (this._childWidth + this._itemSpacing);
                 childBox.x1 = x;
                 childBox.x2 = x + this._childWidth;
@@ -1355,7 +1546,7 @@ const FripperySwitcherPopup = new Lang.Class({
     _redisplay : function() {
         this._list.destroy_all_children();
 
-        for (let i = 0; i < global.screen.n_workspaces; i++) {
+        for (let i = 0; i < global.workspace_manager.n_workspaces; i++) {
             let indicator = null;
 
            if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.LEFT)
@@ -1394,105 +1585,123 @@ const FripperySwitcherPopup = new Lang.Class({
 
 let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 
-function init(extensionMeta) {
-    Convenience.initTranslations();
+const BottomPanelExtension = new Lang.Class({
+    Name: 'BottomPanelExtension',
 
-    origShowWorkspaceSwitcher =
-        WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
+    _init: function(extensionMeta) {
+        Convenience.initTranslations();
 
-    myShowWorkspaceSwitcher = function(display, screen, window, binding) {
-        if (!Main.sessionMode.hasWorkspaces)
-            return;
+        this._bottomPanel = null;
 
-        if (screen.n_workspaces == 1)
-            return;
+        this._origShowWorkspaceSwitcher =
+            WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
 
-        let [action,,,target] = binding.get_name().split('-');
-        let newWs;
-        let direction;
+        this._myShowWorkspaceSwitcher =
+            function(display, window, binding) {
+            let workspaceManager = display.get_workspace_manager();
 
-        if (isNaN(target)) {
-            direction = Meta.MotionDirection[target.toUpperCase()];
-            newWs = screen.get_active_workspace().get_neighbor(direction);
-        } else if (target > 0) {
-            target--;
-            newWs = screen.get_workspace_by_index(target);
+            if (!Main.sessionMode.hasWorkspaces)
+                return;
 
-            // FIXME add proper support for switching to numbered workspace
-            if (screen.get_active_workspace().index() > target)
-                direction = Meta.MotionDirection.UP;
-            else
-                direction = Meta.MotionDirection.DOWN;
-        }
+            if (workspaceManager.n_workspaces == 1)
+                return;
 
-        if (action == 'switch')
-            this.actionMoveWorkspace(newWs);
-        else
-            this.actionMoveWindow(window, newWs);
+            let [action,,,target] = binding.get_name().split('-');
+            let newWs;
+            let direction;
 
-        if (!Main.overview.visible) {
-            if (this._workspaceSwitcherPopup == null) {
-                this._workspaceSwitcherPopup = new FripperySwitcherPopup();
-                this._workspaceSwitcherPopup.connect('destroy',
-                    Lang.bind(this, function() {
-                        this._workspaceSwitcherPopup = null;
-                    }));
+            if (isNaN(target)) {
+                direction = Meta.MotionDirection[target.toUpperCase()];
+                //newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
+                newWs = get_neighbour(workspaceManager.get_active_workspace(), direction);
+            } else if (target > 0) {
+                target--;
+                newWs = workspaceManager.get_workspace_by_index(target);
+
+                // FIXME add proper support for switching to numbered workspace
+                if (workspaceManager.get_active_workspace().index() > target)
+                    direction = Meta.MotionDirection.UP;
+                else
+                    direction = Meta.MotionDirection.DOWN;
             }
-            this._workspaceSwitcherPopup.display(direction, newWs.index());
+
+            if (!newWs)
+                return;
+
+            if (action == 'switch')
+                this.actionMoveWorkspace(newWs);
+            else
+                this.actionMoveWindow(window, newWs);
+
+            if (!Main.overview.visible) {
+                if (this._workspaceSwitcherPopup == null) {
+                    this._workspaceSwitcherPopup = new FripperySwitcherPopup();
+                    this._workspaceSwitcherPopup.connect('destroy',
+                        Lang.bind(this, function() {
+                            this._workspaceSwitcherPopup = null;
+                        }));
+                }
+                this._workspaceSwitcherPopup.display(direction, newWs.index());
+            }
+        };
+
+        WindowManager.WindowManager.prototype._reset = function() {
+            Meta.keybindings_set_custom_handler('switch-to-workspace-left',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('switch-to-workspace-right',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('switch-to-workspace-up',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('switch-to-workspace-down',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('move-to-workspace-left',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('move-to-workspace-right',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('move-to-workspace-up',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+            Meta.keybindings_set_custom_handler('move-to-workspace-down',
+                        Lang.bind(this, this._showWorkspaceSwitcher));
+
+            this._workspaceSwitcherPopup = null;
+        };
+    },
+
+    enable: function() {
+        if ( Main.sessionMode.currentMode == 'classic' ) {
+            log('Frippery Bottom Panel does not work in Classic mode');
+            return;
         }
-    };
 
-    WindowManager.WindowManager.prototype._reset = function() {
-        Meta.keybindings_set_custom_handler('switch-to-workspace-left',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('switch-to-workspace-right',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('switch-to-workspace-up',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('switch-to-workspace-down',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('move-to-workspace-left',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('move-to-workspace-right',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('move-to-workspace-up',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
-        Meta.keybindings_set_custom_handler('move-to-workspace-down',
-                    Lang.bind(this, this._showWorkspaceSwitcher));
+        WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
+            this._myShowWorkspaceSwitcher;
 
-        this._workspaceSwitcherPopup = null;
-    };
-}
+        Main.wm._reset();
 
-let bottomPanel = null;
+        this._bottomPanel = new BottomPanel();
+        this._bottomPanel.relayout();
+    },
 
-function enable() {
-    if ( Main.sessionMode.currentMode == 'classic' ) {
-        log('Frippery Bottom Panel does not work in Classic mode');
-        return;
+    disable: function() {
+        if ( Main.sessionMode.currentMode == 'classic' ) {
+            return;
+        }
+
+        global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
+                false, -1, 1);
+
+        WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
+            this._origShowWorkspaceSwitcher;
+
+        Main.wm._reset();
+
+        if (this._bottomPanel) {
+            this._bottomPanel.actor.destroy();
+            this._bottomPanel = null;
+        }
     }
+});
 
-    WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
-        myShowWorkspaceSwitcher;
-
-    Main.wm._reset();
-
-    bottomPanel = new BottomPanel();
-    bottomPanel.relayout();
-}
-
-function disable() {
-    if ( Main.sessionMode.currentMode == 'classic' ) {
-        return;
-    }
-
-    global.screen.override_workspace_layout(Meta.ScreenCorner.TOPLEFT, false, -1, 1);
-
-    WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
-        origShowWorkspaceSwitcher;
-
-    Main.wm._reset();
-
-    bottomPanel.actor.destroy();
-    bottomPanel = null;
+function init(extensionMeta) {
+    return new BottomPanelExtension(extensionMeta);
 }

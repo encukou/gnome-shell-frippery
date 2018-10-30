@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2016 R M Yorston
+// Copyright (C) 2011-2018 R M Yorston
 // Licence: GPLv2+
 
 const Clutter = imports.gi.Clutter;
@@ -13,14 +13,25 @@ const Mainloop = imports.mainloop;
 const AppFavorites = imports.ui.appFavorites;
 const Main = imports.ui.main;
 const Panel = imports.ui.panel;
+const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 const Tweener = imports.ui.tweener;
+
+const ExtensionUtils = imports.misc.extensionUtils;
+const Me = ExtensionUtils.getCurrentExtension();
+const Convenience = Me.imports.convenience;
 
 const _f = imports.gettext.domain('frippery-panel-favorites').gettext;
 
 const PANEL_LAUNCHER_LABEL_SHOW_TIME = 0.15;
 const PANEL_LAUNCHER_LABEL_HIDE_TIME = 0.1;
 const PANEL_LAUNCHER_HOVER_TIMEOUT = 300;
+
+const SETTINGS_FAVORITES_ENABLED = 'favorites-enabled';
+const SETTINGS_FAVORITES_POSITION = 'favorites-position';
+const SETTINGS_OTHER_APPS_ENABLED = 'other-apps-enabled';
+const SETTINGS_OTHER_APPS_POSITION = 'other-apps-position';
+const SETTINGS_OTHER_APPS = 'other-apps';
 
 const PanelLauncher = new Lang.Class({
     Name: 'PanelLauncher',
@@ -51,6 +62,9 @@ const PanelLauncher = new Lang.Class({
 
         this.actor.connect('clicked', Lang.bind(this, function() {
             this._app.open_new_window(-1);
+            if ( Main.overview.visible ) {
+                Main.overview.hide();
+            }
         }));
         this.actor.connect('notify::hover',
                 Lang.bind(this, this._onHoverChanged));
@@ -167,38 +181,91 @@ const PanelLauncher = new Lang.Class({
     }
 });
 
-const PanelFavorites = new Lang.Class({
-    Name: 'PanelFavorites',
+const ApplicationMenuItem = new Lang.Class({
+    Name: 'ApplicationMenuItem',
+    Extends: PopupMenu.PopupBaseMenuItem,
 
-    _init: function() {
+    _init: function(app, params) {
+        PopupMenu.PopupBaseMenuItem.prototype._init.call(this, params);
+
+        let box = new St.BoxLayout({ name: 'applicationMenuBox',
+                                     style_class: 'applications-menu-item-box'});
+        this.actor.add_child(box);
+
+        let icon = app.create_icon_texture(24);
+        box.add(icon, { x_fill: false, y_fill: false });
+
+        let name = app.get_name();
+
+        let matches = /^(OpenJDK Policy Tool) (.*)/.exec(name);
+        if ( matches && matches.length == 3 ) {
+            name = matches[1] + "\n" + matches[2];
+        }
+
+        matches = /^(OpenJDK 8 Policy Tool) (.*)/.exec(name);
+        if ( matches && matches.length == 3 ) {
+            name = matches[1] + "\n" + matches[2];
+        }
+
+        matches = /^(OpenJDK Monitoring & Management Console) (.*)/.exec(name);
+        if ( matches && matches.length == 3 ) {
+            name = "OpenJDK Console\n" + matches[2];
+        }
+
+        matches = /^(OpenJDK 8 Monitoring & Management Console) (.*)/.exec(name);
+        if ( matches && matches.length == 3 ) {
+            name = "OpenJDK 8 Console\n" + matches[2];
+        }
+
+        let label = new St.Label({ text: name });
+        box.add(label);
+
+        this.app = app;
+
+        this.connect('activate', Lang.bind(this, function() {
+            let id = this.app.get_id();
+            let app = Shell.AppSystem.get_default().lookup_app(id);
+            app.open_new_window(-1);
+        }));
+    }
+});
+
+const PanelAppsButton = new Lang.Class({
+    Name: 'PanelAppsButton',
+    Extends: PanelMenu.Button,
+
+    _init: function(details) {
+        this.parent(0.5, details.description, false);
         this._showLabelTimeoutId = 0;
         this._resetHoverTimeoutId = 0;
         this._labelShowing = false;
 
-        this.actor = new St.BoxLayout({ name: 'panelFavorites',
+        this.actor.name = details.name;
+        this._details = details;
+
+        this._box = new St.BoxLayout({ name: 'panelFavoritesBox',
                                         x_expand: true, y_expand: true,
                                         style_class: 'panel-favorites' });
-        this._display();
-
-        this.container = new St.Bin({ y_fill: true,
-                                      x_fill: true,
-                                      child: this.actor });
+        this.actor.add_actor(this._box);
 
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
         this._installChangedId = Shell.AppSystem.get_default().connect('installed-changed', Lang.bind(this, this._redisplay));
-        this._changedId = AppFavorites.getAppFavorites().connect('changed', Lang.bind(this, this._redisplay));
+        this._changedId = details.change_object.connect(details.change_event, Lang.bind(this, this._redisplay));
+
+        this._display();
     },
 
     _redisplay: function() {
         for ( let i=0; i<this._buttons.length; ++i ) {
             this._buttons[i].destroy();
         }
+        this.menu.removeAll();
 
         this._display();
     },
 
     _display: function() {
-        let launchers = global.settings.get_strv(AppFavorites.getAppFavorites().FAVORITE_APPS_KEY);
+        let launchers = this._details.settings.get_strv(this._details.key);
 
         this._buttons = [];
         let j = 0;
@@ -210,12 +277,15 @@ const PanelFavorites = new Lang.Class({
             }
 
             let launcher = new PanelLauncher(app);
-            this.actor.add(launcher.actor);
+            this._box.add(launcher.actor);
             launcher.actor.connect('notify::hover',
                         Lang.bind(this, function() {
                             this._onHover(launcher);
                         }));
             this._buttons[j] = launcher;
+
+            let menuItem = new ApplicationMenuItem(app);
+            this.menu.addMenuItem(menuItem, j);
             ++j;
         }
     },
@@ -263,12 +333,12 @@ const PanelFavorites = new Lang.Class({
         }
 
         if ( this._changedId != 0 ) {
-            AppFavorites.getAppFavorites().disconnect(this._changedId);
+            this._details.change_object.disconnect(this._changedId);
             this._changedId = 0;
         }
     }
 });
-Signals.addSignalMethods(PanelFavorites.prototype);
+Signals.addSignalMethods(PanelAppsButton.prototype);
 
 // this code stolen from appDisplay.js
 const AppIconMenu = new Lang.Class({
@@ -319,7 +389,7 @@ const AppIconMenu = new Lang.Class({
             this._appendSeparator();
         }
 
-		this._appendWindows(use_submenu, _f('Other Workspaces'), w_there);
+        this._appendWindows(use_submenu, _f('Other Workspaces'), w_there);
 
         if (!this._source._app.is_window_backed()) {
             if (w_there.length && !use_submenu) {
@@ -356,6 +426,12 @@ const AppIconMenu = new Lang.Class({
                     item.connect('activate', Lang.bind(this, function() {
                         let favs = AppFavorites.getAppFavorites();
                         favs.removeFavorite(this._source._app.get_id());
+                    }));
+                } else {
+                    let item = this._appendMenuItem(_("Add to Favorites"));
+                    item.connect('activate', Lang.bind(this, function() {
+                        let favs = AppFavorites.getAppFavorites();
+                        favs.addFavorite(this._source.app.get_id());
                     }));
                 }
             }
@@ -427,44 +503,132 @@ const AppIconMenu = new Lang.Class({
 });
 Signals.addSignalMethods(AppIconMenu.prototype);
 
-let myAddToStatusArea;
-let panelFavorites;
+const FAVORITES = 0;
+const OTHER_APPS = 1;
 
-function enable() {
-    Panel.Panel.prototype.myAddToStatusArea = myAddToStatusArea;
+const PanelFavoritesExtension = new Lang.Class({
+    Name: 'PanelFavoritesExtension',
 
-    // place panel to left of app menu, or failing that at right end of box
-    let siblings = Main.panel._leftBox.get_children();
-    let appMenu = Main.panel.statusArea['appMenu'];
-    let pos = appMenu ? siblings.indexOf(appMenu.container) : siblings.length;
+    _init: function(extensionMeta) {
+        Convenience.initTranslations();
+        this._panelAppsButton = [ null, null ];
+        this._settings = Convenience.getSettings();
+    },
 
-    panelFavorites = new PanelFavorites();
-    Main.panel.myAddToStatusArea('panel-favorites', panelFavorites,
-                                pos, 'left');
-}
+    _getPosition: function(key) {
+        let position, box;
+        // if key is false use left box, if true use right
+        if (!this._settings.get_boolean(key)) {
+            // place panel to left of app menu
+            let siblings = Main.panel._leftBox.get_children();
+            let appMenu = Main.panel.statusArea['appMenu'];
+            position = appMenu ?
+                    siblings.indexOf(appMenu.container) : siblings.length;
+            box = 'left';
+        }
+        else {
+            // place panel to left of aggregate menu
+            let siblings = Main.panel._rightBox.get_children();
+            let aggMenu = Main.panel.statusArea['aggregateMenu'];
+            position = aggMenu ?
+                    siblings.indexOf(aggMenu.container) : siblings.length-1;
+            box = 'right';
+        }
+        return [position, box];
+    },
 
-function disable() {
-    delete Panel.Panel.prototype.myAddToStatusArea;
+    _configureButtons: function() {
+        let details = [
+            {
+                description: _f('Favorites'),
+                name: 'panelFavorites',
+                settings: global.settings,
+                key: AppFavorites.getAppFavorites().FAVORITE_APPS_KEY,
+                change_object: AppFavorites.getAppFavorites(),
+                change_event: 'changed'
+            },
+            {
+                description: _f('Other Applications'),
+                name: 'panelOtherApps',
+                settings: Convenience.getSettings(),
+                key: SETTINGS_OTHER_APPS,
+                change_object: Convenience.getSettings(),
+                change_event: 'changed::' + SETTINGS_OTHER_APPS
+            }
+        ];
+        let role = [ 'panel-favorites', 'panel-other-apps' ];
+        let prefix = [ 'favorites-', 'other-apps-' ];
 
-    panelFavorites.actor.destroy();
-    panelFavorites.emit('destroy');
-    panelFavorites = null;
-}
+        for ( let i=0; i<this._panelAppsButton.length; ++i ) {
+            if (this._settings.get_boolean(prefix[i]+'enabled')) {
+                if (!this._panelAppsButton[i]) {
+                    // button is enabled but doesn't exist, create it
+                    this._panelAppsButton[i] = new PanelAppsButton(details[i]);
+                }
+            }
+            else {
+                if (this._panelAppsButton[i]) {
+                    // button is disabled but does exist, destroy it
+                    this._panelAppsButton[i].actor.destroy();
+                    this._panelAppsButton[i].emit('destroy');
+                    this._panelAppsButton[i] = null;
+	            }
+            }
 
-function init() {
-    myAddToStatusArea = function(role, indicator, position, box) {
-        if (this.statusArea[role])
-            throw new Error('Extension point conflict: there is already a status indicator for role ' + role);
+            if (this._panelAppsButton[i]) {
+                let indicator = Main.panel.statusArea[role[i]];
+                let key = prefix[i]+'position';
+                let [position, box] = this._getPosition(key);
 
-        position = position || 0;
-        let boxes = {
-            left: this._leftBox,
-            center: this._centerBox,
-            right: this._rightBox
-        };
-        let boxContainer = boxes[box] || this._rightBox;
-        this.statusArea[role] = indicator;
-        this._addToPanelBox(role, indicator, position, boxContainer);
-        return indicator;
-    };
+                if (!indicator) {
+                    // indicator with required role doesn't exist, create it
+                    Main.panel.addToStatusArea(role[i],
+                            this._panelAppsButton[i], position, box);
+                }
+                else {
+                    let right_box, wrong_box;
+                    if (this._settings.get_boolean(key)) {
+                        right_box = Main.panel._rightBox;
+                        wrong_box = Main.panel._leftBox;
+                    }
+                    else {
+                        right_box = Main.panel._leftBox;
+                        wrong_box = Main.panel._rightBox;
+                    }
+
+                    let children = wrong_box.get_children();
+                    if (children.indexOf(indicator.container) != -1) {
+                        // indicator exists but is in wrong box, move it
+                        wrong_box.remove_actor(indicator.container);
+                        right_box.insert_child_at_index(indicator.container,
+                                    position);
+                    }
+                }
+            }
+        }
+    },
+
+    enable: function() {
+        this._configureButtons();
+        this._changedId = this._settings.connect('changed',
+                Lang.bind(this, this._configureButtons));
+    },
+
+    disable: function() {
+        if (this._changedId) {
+            this._settings.disconnect(this._changedId);
+        }
+
+        for ( let i=0; i<this._panelAppsButton.length; ++i ) {
+            if (this._panelAppsButton[i]) {
+                this._panelAppsButton[i].actor.destroy();
+                this._panelAppsButton[i].emit('destroy');
+                this._panelAppsButton[i] = null;
+	        }
+        }
+    },
+});
+
+function init(extensionMeta) {
+    return new PanelFavoritesExtension(extensionMeta);
 }

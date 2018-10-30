@@ -1,3 +1,6 @@
+// Copyright (C) 2015-2018 R M Yorston
+// Licence: GPLv2+
+
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
@@ -10,10 +13,11 @@ const Convenience = Me.imports.convenience;
 
 const _f = imports.gettext.domain('frippery-bottom-panel').gettext;
 
-const OVERRIDES_SCHEMA = 'org.gnome.shell.overrides';
+const OVERRIDES_SCHEMA = 'org.gnome.mutter';
 const WM_SCHEMA = 'org.gnome.desktop.wm.preferences';
 
 const SETTINGS_NUM_ROWS = 'num-rows';
+const SETTINGS_ENABLE_PANEL = 'enable-panel';
 const SETTINGS_SHOW_PANEL = 'show-panel';
 const SETTINGS_DYNAMIC_WORKSPACES = 'dynamic-workspaces';
 const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
@@ -70,11 +74,19 @@ const BottomPanelSettingsWidget = new GObject.Class({
                 Gio.SettingsBindFlags.DEFAULT);
         this.attach(check, 0, 2, 2, 1);
 
+        // enable panel (from bottom panel preferences)
+        let enable = new Gtk.CheckButton({ label: _f('Enable panel'),
+                                    margin_top: 6 });
+        let enable_panel = this.settings.get_boolean(SETTINGS_ENABLE_PANEL);
+        enable.set_active(enable_panel);
+        enable.connect('toggled', Lang.bind(this, this._enablePanel));
+        this.attach(enable, 0, 3, 2, 1);
+
         // show panel (from bottom panel preferences)
         let label = new Gtk.Label({ label: _f('Panel visible in workspace'),
                                  margin_bottom: 6, margin_top: 6,
                                  halign: Gtk.Align.START });
-        this.attach(label, 0, 3, 2, 1);
+        this.attach(label, 0, 4, 2, 1);
 
         let align = new Gtk.Alignment({ left_padding: 12 });
         this.add(align);
@@ -85,7 +97,6 @@ const BottomPanelSettingsWidget = new GObject.Class({
         align.add(grid);
 
         let show_panel = this.settings.get_value(SETTINGS_SHOW_PANEL).deep_unpack();
-        show_panel[0] = true;
         if ( show_panel.length < n_workspaces ) {
             for ( let i=show_panel.length; i<n_workspaces; ++i ) {
                 show_panel[i] = true;
@@ -104,7 +115,6 @@ const BottomPanelSettingsWidget = new GObject.Class({
                 if ( i < n_workspaces ) {
                     this.check[i] = new Gtk.CheckButton();
                     this.check[i].set_active(show_panel[i]);
-                    this.check[i].set_sensitive(i != 0);
                     grid.attach(this.check[i], c, r, 1, 1);
                     this.check[i].connect('toggled',
                             Lang.bind(this, this._updatePanel));
@@ -113,10 +123,18 @@ const BottomPanelSettingsWidget = new GObject.Class({
         }
     },
 
+    _enablePanel: function(widget) {
+        let enabled = widget.get_active();
+        this.settings.set_boolean(SETTINGS_ENABLE_PANEL, enabled);
+
+        for ( let i=0; i<this.check.length; ++i ) {
+            this.check[i].set_sensitive(enabled);
+        }
+    },
+
     _updatePanel: function(widget) {
         let show_panel = [];
-        show_panel[0] = true;
-        for ( let i=1; i<this.check.length; ++i ) {
+        for ( let i=0; i<this.check.length; ++i ) {
             show_panel[i] = this.check[i].get_active();
         }
 

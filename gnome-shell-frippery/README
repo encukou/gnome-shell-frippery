@@ -20,6 +20,13 @@ Favourites in panel
   Right clicking on the icons in the panel invokes a menu similar to the
   corresponding menu in the dash.
 
+  The preferences dialog allows additional (non-favourite) applications
+  to be displayed as a separate set of launchers.  The launchers must be
+  specified by adding the names of the corresponding desktop files to
+  a list.  The two sets of launchers can be configured independently.
+  The default behaviour is to display only the favourites to the left
+  of the panel.
+
 Applications menu in panel
 
   Replace the Activities button in the panel with an Applications menu.
@@ -40,6 +47,7 @@ Bottom panel
 
   Items in the window list have a right-click menu which allows each window
   to be minimised, maximised, moved to a different workspace or closed.
+  They can be rearranged by dragging them.
 
   Workspaces are arranged in a horizontal row, so the keybindings to change
   workspace have been altered to ctrl-alt-left/right.  Workspaces can also
@@ -53,8 +61,7 @@ Bottom panel
 
     the number of workspaces and the number of rows;
     enable/disable dynamic workspaces;
-    whether or not the panel appears on each workspace (except the first:
-    the panel is always present on the first workspace).
+    whether or not the panel appears on each workspace.
 
   This extension doesn't work in classic mode.
 
