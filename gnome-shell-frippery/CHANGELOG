@@ -1,3 +1,62 @@
+20180930 - 3.30.0
+
+Update for GNOME 3.30.
+There is a bug in mutter which causes workspaces to behave as though
+they are all in a single column even if a different layout has been
+requested.  A workaround has been applied in the Bottom Panel extension
+but since the window menu isn't managed by the extension the window
+movement entries are incorrect.  The similar menu in the window list
+is correct.
+
+20180930 - 3.28.3
+
+When window-added and window-removed callbacks are disconnected in
+WindowList set their ids to zero.  This avoids errors being logged when
+the bottom panel is recreated after the screen is locked.
+Disconnect signals handlers for tracked windows when the bottom panel
+is destroyed.
+In Bottom Panel, ensure workspaces that are out of range don't cause
+problems in the workspace switcher.
+
+20180730 - 3.28.2
+
+Allow the bottom panel to be disabled on all workspaces with a single
+setting (rather than having to set the state for each workspace
+individually).
+
+20180617 - 3.28.1
+
+Exclude windows of type DESKTOP from the window list in the Bottom
+Panel.  This fixes a problem with dragging window list items not
+working properly when desktop items are enabled.  (Reported by konradmb.)
+Save the window list sequence when the Bottom Panel extension is
+disabled, as happens when the screen is locked.  This allows the order
+of items in the window list to persist.  (Reported by mlara.work.)
+
+20180502 - 3.28.0
+
+In Panel Favorites, update display of other applications when list is
+altered.
+
+20180312 - 3.26.3
+
+Allow window list items in the bottom panel to be arranged by dragging
+them.  Based on a patch provided by Igor Coelho.
+Allow the bottom panel to be disabled on all workpaces including the
+first.
+Add support for an additional set of applications in Panel Favorites.
+These need not be favourites and will be displayed in a separate
+button.  Add a preferences dialog to allow these additional applications
+to be configured.  The default settings mean that the behaviour of an
+unconfigured Panel Favorites installation is unchanged from before.
+Adjust style of Bottom Panel tooltips.
+Make PanelFavorites a subclass of PanelMenu.Button.  As a result we
+no longer need to provide a private version of Panel.addToStatusArea
+to permit a non-PanelMenu.Button to be added to the panel.  We do need
+to provide a menu.  Also tweak the stylesheet.
+When an application is started from Panel Favorites in the overview
+hide the overview.  (Patch provided by Ahmad Samir.)
+
 20171012 - 3.26.2
 
 Access panel details through Main.sessionMode in Move Clock.

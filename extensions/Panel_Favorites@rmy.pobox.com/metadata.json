@@ -1,7 +1,9 @@
 {
-    "shell-version": ["3.20", "3.22", "3.24", "3.26"],
+    "shell-version": ["3.20", "3.22", "3.24", "3.26", "3.28", "3.30"],
     "uuid": "Panel_Favorites@rmy.pobox.com",
     "name": "Frippery Panel Favorites",
     "description": "Add launchers for Favorites to the panel",
-    "url": "http://frippery.org/extensions"
+    "url": "https://frippery.org/extensions",
+    "gettext-domain": "frippery-panel-favorites",
+    "settings-schema": "org.frippery.panel-favorites"
 }
