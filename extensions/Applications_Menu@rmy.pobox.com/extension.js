@@ -1,13 +1,8 @@
-// Copyright (C) 2011-2017 R M Yorston
+// Copyright (C) 2011-2019 R M Yorston
 // Licence: GPLv2+
 
-const Clutter = imports.gi.Clutter;
-const Gio = imports.gi.Gio;
-const GLib = imports.gi.GLib;
-const GMenu = imports.gi.GMenu;
+const { Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
 const Lang = imports.lang;
-const Shell = imports.gi.Shell;
-const St = imports.gi.St;
 
 const Layout = imports.ui.layout;
 const Main = imports.ui.main;
@@ -27,12 +22,10 @@ const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
 const SETTINGS_ENABLE_HOT_CORNER = "enable-hot-corner";
 
-const ApplicationMenuItem = new Lang.Class({
-    Name: 'ApplicationMenuItem',
-    Extends: PopupMenu.PopupBaseMenuItem,
-
-    _init: function(app, params) {
-        PopupMenu.PopupBaseMenuItem.prototype._init.call(this, params);
+const ApplicationMenuItem =
+class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
+    constructor(app, params) {
+        super(params);
 
         let box = new St.BoxLayout({ name: 'applicationMenuBox',
                                      style_class: 'applications-menu-item-box'});
@@ -74,14 +67,12 @@ const ApplicationMenuItem = new Lang.Class({
             app.open_new_window(-1);
         }));
     }
-});
+};
 
-const ToggleSwitch = new Lang.Class({
-    Name: 'ToggleSwitch',
-    Extends: PopupMenu.Switch,
-
-    _init: function(state) {
-        PopupMenu.Switch.prototype._init.call(this, state);
+const ToggleSwitch =
+class ToggleSwitch extends PopupMenu.Switch {
+    constructor(state) {
+        super(state);
 
         this.actor.can_focus = true;
         this.actor.reactive = true;
@@ -95,14 +86,14 @@ const ToggleSwitch = new Lang.Class({
                 Lang.bind(this, this._onKeyFocusIn));
         this.actor.connect('key-focus-out',
                 Lang.bind(this, this._onKeyFocusOut));
-    },
+    }
 
-    _onButtonReleaseEvent: function(actor, event) {
+    _onButtonReleaseEvent(actor, event) {
         this.toggle();
         return true;
-    },
+    }
 
-    _onKeyPressEvent: function(actor, event) {
+    _onKeyPressEvent(actor, event) {
         let symbol = event.get_key_symbol();
 
         if (symbol == Clutter.KEY_space || symbol == Clutter.KEY_Return) {
@@ -111,32 +102,30 @@ const ToggleSwitch = new Lang.Class({
         }
 
         return false;
-    },
+    }
 
-    _onKeyFocusIn: function(actor) {
+    _onKeyFocusIn(actor) {
         actor.add_style_pseudo_class('active');
-    },
+    }
 
-    _onKeyFocusOut: function(actor) {
+    _onKeyFocusOut(actor) {
         actor.remove_style_pseudo_class('active');
-    },
+    }
 
-    getState: function() {
+    getState() {
         return this.state;
     }
-});
+};
 
-const ShowHideSwitch = new Lang.Class({
-    Name: 'ShowHideSwitch',
-    Extends: ToggleSwitch,
-
-    _init: function(item, state) {
-        ToggleSwitch.prototype._init.call(this, state);
+const ShowHideSwitch =
+class ShowHideSwitch extends ToggleSwitch {
+    constructor(item, state) {
+        super(state);
 
         this.item = item;
-    },
+    }
 
-    toggle: function() {
+    toggle() {
         ToggleSwitch.prototype.toggle.call(this);
 
         if ( this.state ) {
@@ -146,15 +135,12 @@ const ShowHideSwitch = new Lang.Class({
             this.item.hide();
         }
     }
-});
+};
 
-const ApplicationsMenuDialog = new Lang.Class({
-    Name: 'ApplicationsMenuDialog',
-    Extends: ModalDialog.ModalDialog,
-
-    _init: function(button) {
-        ModalDialog.ModalDialog.prototype._init.call(this,
-                    { styleClass: 'applications-menu-dialog' });
+const ApplicationsMenuDialog =
+class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
+    constructor(button) {
+        super({ styleClass: 'applications-menu-dialog' });
 
         this.button = button;
 
@@ -203,9 +189,9 @@ const ApplicationsMenuDialog = new Lang.Class({
 
         this.dialogLayout._buttonKeys[Clutter.Escape] =
             this.dialogLayout._buttonKeys[Clutter.Return];
-    },
+    }
 
-    open: function() {
+    open() {
         let state = this.button._settings.get_boolean(SETTINGS_SHOW_ICON);
         this.iconSwitch.setToggleState(state);
 
@@ -217,9 +203,9 @@ const ApplicationsMenuDialog = new Lang.Class({
 
         ModalDialog.ModalDialog.prototype.open.call(this,
                 global.get_current_time());
-    },
+    }
 
-    close: function() {
+    close() {
         let state = this.iconSwitch.getState();
         this.button._settings.set_boolean(SETTINGS_SHOW_ICON, state);
 
@@ -232,14 +218,12 @@ const ApplicationsMenuDialog = new Lang.Class({
         ModalDialog.ModalDialog.prototype.close.call(this,
                 global.get_current_time());
     }
-});
+};
 
-const ApplicationsMenuButton = new Lang.Class({
-    Name: 'ApplicationsMenuButton',
-    Extends: PanelMenu.Button,
-
-    _init: function() {
-        this.parent(1.0, _("Applications"), false);
+const ApplicationsMenuButton = GObject.registerClass(
+class ApplicationsMenuButton extends PanelMenu.Button {
+    _init() {
+        super._init(1.0, _("Applications"), false);
 
         this._box = new St.BoxLayout();
 
@@ -271,14 +255,6 @@ const ApplicationsMenuButton = new Lang.Class({
         this._installChangedId = this._appSystem.connect('installed-changed',
                 Lang.bind(this, this._rebuildMenu));
 
-        // Since the hot corner uses stage coordinates, Clutter won't
-        // queue relayouts for us when the panel moves. Queue a relayout
-        // when that happens.  Stolen from apps-menu extension.
-        this._panelBoxChangedId = Main.layoutManager.connect(
-                'panel-box-changed', Lang.bind(this, function() {
-                                        container.queue_relayout();
-                                    }));
-
         this._buildMenu();
 
         this.actor.connect('button-release-event',
@@ -287,22 +263,22 @@ const ApplicationsMenuButton = new Lang.Class({
         Main.layoutManager.connect('startup-complete',
                                    Lang.bind(this, this._setKeybinding));
         this._setKeybinding();
-    },
+    }
 
-    _onHoverChanged: function(actor) {
+    _onHoverChanged(actor) {
         this._iconBox.opacity = actor.hover ? 255 : 207;
-    },
+    }
 
-    _setKeybinding: function() {
+    _setKeybinding() {
         Main.wm.setCustomKeybindingHandler('panel-main-menu',
                                    Shell.ActionMode.NORMAL |
                                    Shell.ActionMode.OVERVIEW,
                                    Lang.bind(this, function() {
                                        this.menu.toggle();
                                    }));
-    },
+    }
 
-    _onEvent: function(actor, event) {
+    _onEvent(actor, event) {
         if ( event.type() == Clutter.EventType.BUTTON_RELEASE &&
                 event.get_button() == 3 ) {
             return Clutter.EVENT_PROPAGATE;
@@ -319,17 +295,12 @@ const ApplicationsMenuButton = new Lang.Class({
         }
 
         return PanelMenu.Button.prototype._onEvent.call(this, actor, event);
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         if ( this._installChangedId != 0 ) {
             this._appSystem.disconnect(this._installChangedId);
             this._installChangedId = 0;
-        }
-
-        if ( this._panelBoxChangedId != 0 ) {
-            Main.layoutManager.disconnect(this._panelBoxChangedId);
-            this._panelBoxChangedId = 0;
         }
 
         if ( this._settingsChangedId != 0 ) {
@@ -343,10 +314,10 @@ const ApplicationsMenuButton = new Lang.Class({
                            Main.sessionMode.hasOverview ?
                            Lang.bind(Main.overview, Main.overview.toggle) :
                            null);
-    },
+    }
 
     // Stolen from appDisplay.js and apps-menu extension
-    _loadCategory: function(dir, appList) {
+    _loadCategory(dir, appList) {
         let iter = dir.iter();
         let nextType;
         while ((nextType = iter.next()) != GMenu.TreeItemType.INVALID) {
@@ -368,9 +339,9 @@ const ApplicationsMenuButton = new Lang.Class({
                     this._loadCategory(itemDir, appList);
             }
         }
-    },
+    }
 
-    _buildSections: function() {
+    _buildSections() {
         // Stolen from appDisplay.js and apps-menu extension
         var tree = new GMenu.Tree({menu_basename: 'applications.menu'});
         tree.load_sync();
@@ -395,9 +366,9 @@ const ApplicationsMenuButton = new Lang.Class({
         }
 
         return sections;
-    },
+    }
 
-    _buildMenu: function() {
+    _buildMenu() {
         let sections = this._buildSections();
         for ( let i=0; i<sections.length; ++i ) {
             let section = sections[i];
@@ -410,24 +381,24 @@ const ApplicationsMenuButton = new Lang.Class({
 
                 submenu.menu.addMenuItem(menuItem, j);
             }
+        }
     }
-    },
 
-    _rebuildMenu: function() {
+    _rebuildMenu() {
         this.menu.removeAll();
         this._buildMenu();
-    },
+    }
 
-    _showDialog: function(actor, event) {
+    _showDialog(actor, event) {
         if ( event.get_button() == 3 ) {
             let applicationsMenuDialog = new ApplicationsMenuDialog(this);
             applicationsMenuDialog.open();
             return true;
         }
         return false;
-    },
+    }
 
-    _settingsChanged: function() {
+    _settingsChanged() {
         if ( this._settings.get_boolean(SETTINGS_SHOW_ICON) ) {
             this._iconBox.show();
         }
@@ -447,14 +418,13 @@ const ApplicationsMenuButton = new Lang.Class({
     }
 });
 
-const ApplicationsMenuExtension = new Lang.Class({
-    Name: 'ApplicationsMenuExtension',
-
-    _init: function(extensionMeta) {
+const ApplicationsMenuExtension =
+class ApplicationsMenuExtension {
+    constructor(extensionMeta) {
         Convenience.initTranslations();
-    },
+    }
 
-    enable: function() {
+    enable() {
         let mode = Main.sessionMode.currentMode;
         if ( mode == 'classic' ) {
             log('Frippery Applications Menu does not work in Classic mode');
@@ -495,9 +465,9 @@ const ApplicationsMenuExtension = new Lang.Class({
         this.applicationsButton = new ApplicationsMenuButton();
         Main.panel.addToStatusArea('frippery-apps', this.applicationsButton,
                 0, 'left');
-    },
+    }
 
-    disable: function() {
+    disable() {
         let mode = Main.sessionMode.currentMode;
         if ( mode == 'classic' ) {
             return;
@@ -517,7 +487,7 @@ const ApplicationsMenuExtension = new Lang.Class({
             this.activitiesButton.container.show();
         }
     }
-});
+};
 
 function init(extensionMeta) {
     return new ApplicationsMenuExtension(extensionMeta);

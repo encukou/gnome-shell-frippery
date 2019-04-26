@@ -2,6 +2,10 @@
     spacing: 6px;
 }
 
+.panel-launcher-icon {
+    icon-size: 1.5em;
+}
+
 .panel-launcher-label {
     border-radius: 7px;
     padding: 4px 12px;
