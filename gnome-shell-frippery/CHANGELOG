@@ -1,3 +1,22 @@
+20190325 - 3.32.1
+
+Rewrite icon creation in Panel Favorites to avoid 100% CPU usage
+when font scaling is used.  (Reported by Andy Botting.)
+
+20190324 - 3.32.0
+
+Update for GNOME 3.32.
+
+20190224 - 3.30.2
+
+Apply patch from appDisplay.js to Panel Favorites extension.  This
+prevents errors that may occur when the extension is disabled.
+(Reported by Paul Smith.)
+
+20181031 - 3.30.1
+
+Fix the right-click menu for items in Panel Favorites.
+
 20180930 - 3.30.0
 
 Update for GNOME 3.30.

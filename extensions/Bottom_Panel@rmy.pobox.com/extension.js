@@ -1,16 +1,10 @@
-// Copyright (C) 2011-2018 R M Yorston
+// Copyright (C) 2011-2019 R M Yorston
 // Licence: GPLv2+
 
-const Clutter = imports.gi.Clutter;
-const Gio = imports.gi.Gio;
-const GLib = imports.gi.GLib;
+const { Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
 const Lang = imports.lang;
 const Mainloop = imports.mainloop;
-const Meta = imports.gi.Meta;
-const Pango = imports.gi.Pango;
-const Shell = imports.gi.Shell;
 const Signals = imports.signals;
-const St = imports.gi.St;
 
 const CheckBox = imports.ui.checkBox;
 const Main = imports.ui.main;
@@ -49,16 +43,15 @@ let save_wsdata = [];
  *                          this._onHover(item); }));
  *
  */
-const TooltipContainer = new Lang.Class({
-    Name: 'TooltipContainer',
-
-    _init: function() {
+const TooltipContainer =
+class TooltipContainer {
+    constructor() {
         this._showTooltipTimeoutId = 0;
         this._resetHoverTimeoutId = 0;
         this._tooltipShowing = false;
-    },
+    }
 
-    _onHover: function(item) {
+    _onHover(item) {
         if ( item.actor.hover ) {
             if (this._showTooltipTimeoutId == 0) {
                 let timeout = this._tooltipShowing ?
@@ -92,19 +85,18 @@ const TooltipContainer = new Lang.Class({
             }
         }
     }
-});
+};
 
 /*
  * This is a base class for child items that have a tooltip and which allow
  * the hover handler in the parent container class to show/hide the tooltip.
  */
-const TooltipChild = new Lang.Class({
-    Name: 'TooltipChild',
+const TooltipChild =
+class TooltipChild {
+    constructor() {
+    }
 
-    _init: function() {
-    },
-
-    showTooltip: function(container) {
+    showTooltip(container) {
         this.tooltip.opacity = 0;
         this.tooltip.show();
 
@@ -140,9 +132,9 @@ const TooltipChild = new Lang.Class({
                        time: BOTTOM_PANEL_TOOLTIP_SHOW_TIME,
                        transition: 'easeOutQuad',
                      });
-    },
+    }
 
-    hideTooltip: function () {
+    hideTooltip() {
         this.tooltip.opacity = 255;
 
         Tweener.addTween(this.tooltip,
@@ -154,16 +146,14 @@ const TooltipChild = new Lang.Class({
                        })
                      });
     }
-});
+};
 
 const MAX_BOTH = Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL;
 
-const WindowListItemMenu = new Lang.Class({
-    Name: 'WindowListItemMenu',
-    Extends: PopupMenu.PopupMenu,
-
-    _init: function(metaWindow, actor) {
-        this.parent(actor, 0.0, St.Side.BOTTOM, 0);
+const WindowListItemMenu =
+class WindowListItemMenu extends PopupMenu.PopupMenu {
+    constructor(metaWindow, actor) {
+        super(actor, 0.0, St.Side.BOTTOM, 0);
 
         Main.uiGroup.add_actor(this.actor);
         this.actor.hide();
@@ -235,9 +225,9 @@ const WindowListItemMenu = new Lang.Class({
         item = new PopupMenu.PopupMenuItem(_('Close'));
         item.connect('activate', Lang.bind(this, this._onCloseWindowActivate));
         this.addMenuItem(item);
-    },
+    }
 
-    _buildWorkspaceSubMenu: function(submenu) {
+    _buildWorkspaceSubMenu(submenu) {
         for ( let j=0; j<global.workspace_manager.n_workspaces; ++j ) {
             let active = global.workspace_manager.get_active_workspace_index();
             let item = new PopupMenu.PopupMenuItem(
@@ -247,9 +237,9 @@ const WindowListItemMenu = new Lang.Class({
             item.setSensitive(j != active);
             submenu.addMenuItem(item, j);
         }
-    },
+    }
 
-    _onToggled: function(actor, state) {
+    _onToggled(actor, state) {
         if ( !state ) {
             return;
         }
@@ -279,8 +269,7 @@ const WindowListItemMenu = new Lang.Class({
         let ws1 = global.workspace_manager.get_active_workspace();
 
         for ( let i=0; i<this.itemMove.length; ++i ) {
-            //let ws2 = ws1.get_neighbor(this.itemMove[i].direction);
-            let ws2 = get_neighbour(ws1, this.itemMove[i].direction);
+            let ws2 = ws1.get_neighbor(this.itemMove[i].direction);
             if ( ws1 != ws2 ) {
                 this.itemMove[i].actor.show();
             }
@@ -294,9 +283,9 @@ const WindowListItemMenu = new Lang.Class({
             this.workspaceSubMenu.removeAll();
             this._buildWorkspaceSubMenu(this.workspaceSubMenu);
         }
-    },
+    }
 
-    _onMinimizeWindowActivate: function(actor, event) {
+    _onMinimizeWindowActivate(actor, event) {
         if ( this.metaWindow.minimized ) {
             this.metaWindow.activate(global.get_current_time());
             this.itemMinimizeWindow.label.set_text(_('Minimize'));
@@ -305,9 +294,9 @@ const WindowListItemMenu = new Lang.Class({
             this.metaWindow.minimize(global.get_current_time());
             this.itemMinimizeWindow.label.set_text(_f('Unminimize'));
         }
-    },
+    }
 
-    _onMaximizeWindowActivate: function(actor, event) {
+    _onMaximizeWindowActivate(actor, event) {
         if ( this.metaWindow.get_maximized() == MAX_BOTH ) {
             this.metaWindow.unmaximize(MAX_BOTH);
             this.itemMaximizeWindow.label.set_text(_('Maximize'));
@@ -316,9 +305,9 @@ const WindowListItemMenu = new Lang.Class({
             this.metaWindow.maximize(MAX_BOTH);
             this.itemMaximizeWindow.label.set_text(_('Unmaximize'));
         }
-    },
+    }
 
-    _onOnTopWindowToggle: function(item, event) {
+    _onOnTopWindowToggle(item, event) {
         if ( this.metaWindow.is_above() ) {
             item.setOrnament(PopupMenu.Ornament.NONE);
             this.metaWindow.unmake_above();
@@ -327,9 +316,9 @@ const WindowListItemMenu = new Lang.Class({
             item.setOrnament(PopupMenu.Ornament.DOT);
             this.metaWindow.make_above();
         }
-    },
+    }
 
-    _onStickyWindowToggle: function(item, event) {
+    _onStickyWindowToggle(item, event) {
         if ( this.metaWindow.is_on_all_workspaces() ) {
             item.setOrnament(PopupMenu.Ornament.NONE);
             this.metaWindow.unstick();
@@ -338,36 +327,33 @@ const WindowListItemMenu = new Lang.Class({
             item.setOrnament(PopupMenu.Ornament.DOT);
             this.metaWindow.stick();
         }
-    },
+    }
 
-    _onMoveWindowActivate: function(item, event) {
+    _onMoveWindowActivate(item, event) {
         let ws1 = global.workspace_manager.get_active_workspace();
-        //let ws2 = ws1.get_neighbor(item.direction);
-        let ws2 = get_neighbour(ws1, item.direction);
+        let ws2 = ws1.get_neighbor(item.direction);
         if ( ws2 && ws1 != ws2 ) {
             this.metaWindow.change_workspace(ws2);
         }
-    },
+    }
 
-    _onMoveToActivate: function(item, event) {
+    _onMoveToActivate(item, event) {
         let ws1 = global.workspace_manager.get_active_workspace();
         let ws2 = global.workspace_manager.get_workspace_by_index(item.index);
         if ( ws2 && ws1 != ws2 ) {
             this.metaWindow.change_workspace(ws2);
         }
-    },
+    }
 
-    _onCloseWindowActivate: function(actor, event) {
+    _onCloseWindowActivate(actor, event) {
         this.metaWindow.delete(global.get_current_time());
     }
-});
+};
 
-const WindowListItem = new Lang.Class({
-    Name: 'WindowListItem',
-    Extends: TooltipChild,
-
-    _init: function(myWindowList, app, metaWindow) {
-        this.parent();
+const WindowListItem =
+class WindowListItem extends TooltipChild {
+    constructor(myWindowList, app, metaWindow) {
+        super();
 
         this.metaWindow = metaWindow;
         this.myWindowList = myWindowList;
@@ -421,22 +407,22 @@ const WindowListItem = new Lang.Class({
                                     Lang.bind(this, this._updateIconGeometry));
 
         this._onFocus();
-    },
+    }
 
-    _getIndex: function() {
+    _getIndex() {
         return this.myWindowList._windows.indexOf(this);
-    },
+    }
 
-    _onTitleChanged: function() {
+    _onTitleChanged() {
         let title = this.metaWindow.title;
         this.tooltip.set_text(title);
         if ( this.metaWindow.minimized ) {
             title = '[' + title + ']';
         }
         this.label.set_text(title);
-    },
+    }
 
-    _onMinimizedChanged: function() {
+    _onMinimizedChanged() {
         if ( this.metaWindow.minimized ) {
             this.icon.opacity = 127;
             this.label.text = '[' + this.metaWindow.title + ']';
@@ -445,17 +431,17 @@ const WindowListItem = new Lang.Class({
             this.icon.opacity = 255;
             this.label.text = this.metaWindow.title;
         }
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         this.metaWindow.disconnect(this._notifyTitleId);
         this.metaWindow.disconnect(this._notifyMinimizedId);
         global.display.disconnect(this._notifyFocusId);
         this.tooltip.destroy();
         this.rightClickMenu.destroy();
-    },
+    }
 
-    _onButtonPress: function(actor, event) {
+    _onButtonPress(actor, event) {
         let button = event.get_button();
 
         if ( this.rightClickMenu.isOpen ) {
@@ -469,9 +455,9 @@ const WindowListItem = new Lang.Class({
             this.hideTooltip();
             this.rightClickMenu.open();
         }
-    },
+    }
 
-    _onButtonRelease: function(actor, event) {
+    _onButtonRelease(actor, event) {
         let button = event.get_button();
 
         if ( button == 1 ) {
@@ -497,9 +483,9 @@ const WindowListItem = new Lang.Class({
             }
             this.myWindowList.dragIndex = -1;
         }
-    },
+    }
 
-    _onFocus: function() {
+    _onFocus() {
         if ( this.metaWindow.has_focus() ) {
             this._itemBox.add_style_pseudo_class('focused');
         }
@@ -513,9 +499,9 @@ const WindowListItem = new Lang.Class({
         else {
             this._itemBox.remove_style_pseudo_class('minimized');
         }
-    },
+    }
 
-    _updateIconGeometry: function() {
+    _updateIconGeometry() {
         let rect = new Meta.Rectangle();
 
         [rect.x, rect.y] = this.actor.get_transformed_position();
@@ -523,14 +509,12 @@ const WindowListItem = new Lang.Class({
 
         this.metaWindow.set_icon_geometry(rect);
     }
-});
+};
 
-const WindowList = new Lang.Class({
-    Name: 'WindowList',
-    Extends: TooltipContainer,
-
-    _init: function() {
-        this.parent();
+const WindowList =
+class WindowList extends TooltipContainer {
+    constructor() {
+        super();
 
         this.actor = new St.BoxLayout({ name: 'windowList',
                                         style_class: 'window-list-box' });
@@ -553,18 +537,18 @@ const WindowList = new Lang.Class({
         this._refreshItems();
 
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
-    },
+    }
 
-    _onHover: function(item) {
+    _onHover(item) {
         if ( item.rightClickMenu.isOpen ) {
             item.hideTooltip();
         }
         else {
-            this.parent(item);
+            super._onHover(item);
         }
-    },
+    }
 
-    _addListItem: function(metaWindow) {
+    _addListItem(metaWindow) {
         if ( metaWindow && !metaWindow.skip_taskbar ) {
             let tracker = Shell.WindowTracker.get_default();
             let app = tracker.get_window_app(metaWindow);
@@ -572,18 +556,23 @@ const WindowList = new Lang.Class({
                 let item = new WindowListItem(this, app, metaWindow);
                 this._windows.push(item);
                 this.actor.add(item.actor);
-                item.actor.connect('notify::hover',
+                item.onHoverCallbackId = item.actor.connect('notify::hover',
                         Lang.bind(this, function() {
                             this._onHover(item);
                         }));
                 this._menuManager.addMenu(item.rightClickMenu);
             }
         }
-    },
+    }
 
-    _refreshItems: function() {
+    _refreshItems() {
         let i, j;
 
+        for (let item of this._windows) {
+            if (item.onHoverCallbackId) {
+                item.actor.disconnect(item.onHoverCallbackId);
+            }
+        }
         this.actor.destroy_all_children();
         this._windows = [];
 
@@ -625,9 +614,9 @@ const WindowList = new Lang.Class({
         for ( let i = 0; i < windows.length; ++i ) {
             this._addListItem(windows[i]);
         }
-    },
+    }
 
-    _windowAdded: function(metaWorkspace, metaWindow) {
+    _windowAdded(metaWorkspace, metaWindow) {
         let index = metaWorkspace.index();
         let seq = metaWindow.get_stable_sequence();
         this._wsdata[index].windowSeq.push(seq);
@@ -643,9 +632,9 @@ const WindowList = new Lang.Class({
         }
 
         this._addListItem(metaWindow);
-    },
+    }
 
-    _windowRemoved: function(metaWorkspace, metaWindow) {
+    _windowRemoved(metaWorkspace, metaWindow) {
         let index = metaWorkspace.index();
         let seq = metaWindow.get_stable_sequence();
         let windowSeq = this._wsdata[index].windowSeq;
@@ -667,9 +656,9 @@ const WindowList = new Lang.Class({
                 break;
             }
         }
-    },
+    }
 
-    _disconnectCallbacks: function() {
+    _disconnectCallbacks() {
         for ( let i=0;
                 i<this._wsdata.length &&
                     i<global.workspace_manager.n_workspaces;
@@ -685,9 +674,9 @@ const WindowList = new Lang.Class({
             wd.windowAddedId = 0;
             wd.windowRemovedId = 0;
         }
-    },
+    }
 
-    _changeWorkspaces: function() {
+    _changeWorkspaces() {
         this._disconnectCallbacks();
 
         // truncate arrays to number of workspaces
@@ -716,15 +705,15 @@ const WindowList = new Lang.Class({
             this._wsdata[i].windowRemovedId = ws.connect('window-removed',
                                     Lang.bind(this, this._windowRemoved));
         }
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         this._disconnectCallbacks();
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
         global.workspace_manager.disconnect(this._onNWorkspacesId);
         save_wsdata = this._wsdata;
     }
-});
+};
 
 let nrows = 1;
 
@@ -736,45 +725,10 @@ function get_ncols() {
     return ncols;
 }
 
-/*
- * There's a bug in mutter which results in get_neighbor returning the
- * wrong workspace:
- *
- *   https://gitlab.gnome.org/GNOME/mutter/issues/270
- *
- * Implement a workaround.
- */
-function get_neighbour(workspace, direction) {
-    let ncols = get_ncols();
-    let index = workspace.index();
-
-    if (direction == Meta.MotionDirection.LEFT) {
-        if (index%ncols != 0)
-            --index;
-    }
-    else if (direction == Meta.MotionDirection.RIGHT) {
-        if (index%ncols != ncols-1)
-            ++index;
-    }
-    else if (direction == Meta.MotionDirection.UP) {
-        if (index/ncols != 0)
-           index -= ncols;
-    }
-    else if (direction == Meta.MotionDirection.DOWN) {
-        if (index/ncols != nrows-1)
-           index += ncols;
-    }
-
-    let newWs = global.workspace_manager.get_workspace_by_index(index);
-    return newWs ? newWs : workspace;
-}
-
-const ToggleSwitch = new Lang.Class({
-    Name: 'ToggleSwitch',
-    Extends: PopupMenu.Switch,
-
-    _init: function(state) {
-        this.parent(state);
+const ToggleSwitch =
+class ToggleSwitch extends PopupMenu.Switch {
+    constructor(state) {
+        super(state);
 
         this.actor.can_focus = true;
         this.actor.reactive = true;
@@ -788,14 +742,14 @@ const ToggleSwitch = new Lang.Class({
                 Lang.bind(this, this._onKeyFocusIn));
         this.actor.connect('key-focus-out',
                 Lang.bind(this, this._onKeyFocusOut));
-    },
+    }
 
-    _onButtonReleaseEvent: function(actor, event) {
+    _onButtonReleaseEvent(actor, event) {
         this.toggle();
         return true;
-    },
+    }
 
-    _onKeyPressEvent: function(actor, event) {
+    _onKeyPressEvent(actor, event) {
         let symbol = event.get_key_symbol();
 
         if (symbol == Clutter.KEY_space || symbol == Clutter.KEY_Return) {
@@ -804,56 +758,50 @@ const ToggleSwitch = new Lang.Class({
         }
 
         return false;
-    },
+    }
 
-    _onKeyFocusIn: function(actor) {
+    _onKeyFocusIn(actor) {
         actor.add_style_pseudo_class('active');
-    },
+    }
 
-    _onKeyFocusOut: function(actor) {
+    _onKeyFocusOut(actor) {
         actor.remove_style_pseudo_class('active');
     }
-});
+};
 
-const DynamicWorkspacesSwitch = new Lang.Class({
-    Name: 'DynamicWorkspacesSwitch',
-    Extends: ToggleSwitch,
-
-    _init: function() {
+const DynamicWorkspacesSwitch =
+class DynamicWorkspacesSwitch extends ToggleSwitch {
+    constructor() {
+        super(true);
         this._settings = new Gio.Settings({ schema: OVERRIDES_SCHEMA });
-        let state = this._settings.get_boolean('dynamic-workspaces');
+        this.updateState();
+    }
 
-        this.parent(state);
-    },
-
-    updateState: function() {
+    updateState() {
         this.setToggleState(this._settings.get_boolean('dynamic-workspaces'));
-    },
+    }
 
-    toggle: function() {
-        this.parent();
+    toggle() {
+        super.toggle();
         this._settings.set_boolean('dynamic-workspaces', this.state);
     }
-});
+};
 
-const EnablePanelSwitch = new Lang.Class({
-    Name: 'EnablePanelSwitch',
-    Extends: ToggleSwitch,
-
-    _init: function(dialog) {
+const EnablePanelSwitch =
+class EnablePanelSwitch extends ToggleSwitch {
+    constructor(dialog) {
+        super(true);
         this._dialog = dialog;
         this._settings = Convenience.getSettings();
-        let state = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
+        this.updateState();
+    }
 
-        this.parent(state);
-    },
-
-    updateState: function() {
+    updateState() {
         this.setToggleState(this._settings.get_boolean(SETTINGS_ENABLE_PANEL));
-    },
+    }
 
-    toggle: function() {
-        this.parent();
+    toggle() {
+        super.toggle();
         this._settings.set_boolean(SETTINGS_ENABLE_PANEL, this.state);
 
         for ( let i=0; i<this._dialog.cb.length; ++i ) {
@@ -861,14 +809,12 @@ const EnablePanelSwitch = new Lang.Class({
             this._dialog.cb[i].actor.can_focus = this.state;
         }
     }
-});
+};
 
-const WorkspaceDialog = new Lang.Class({
-    Name: 'WorkspaceDialog',
-    Extends: ModalDialog.ModalDialog,
-
-    _init: function() {
-        this.parent({ styleClass: 'workspace-dialog' });
+const WorkspaceDialog =
+class WorkspaceDialog extends ModalDialog.ModalDialog {
+    constructor() {
+        super({ styleClass: 'workspace-dialog' });
 
         let layout = new Clutter.TableLayout();
         let table = new St.Widget({reactive: true,
@@ -947,17 +893,17 @@ const WorkspaceDialog = new Lang.Class({
                          default: true }];
 
         this.setButtons(buttons);
-    },
+    }
 
-    open: function() {
+    open() {
         this._workspaceEntry.set_text(''+global.workspace_manager.n_workspaces);
         this._rowEntry.set_text(''+nrows);
         this._dynamicWorkspaces.updateState();
 
-        this.parent();
-    },
+        super.open();
+    }
 
-    _updateValues: function() {
+    _updateValues() {
         let settings = Convenience.getSettings();
         let changed = false;
         for ( let i=0; i<this.cb.length; ++i ) {
@@ -998,15 +944,13 @@ const WorkspaceDialog = new Lang.Class({
             }
         }
     }
-});
+};
 Signals.addSignalMethods(WorkspaceDialog.prototype);
 
-const WorkspaceButton = new Lang.Class({
-    Name: 'WorkspaceButton',
-    Extends: TooltipChild,
-
-    _init: function(index) {
-        this.parent();
+const WorkspaceButton =
+class WorkspaceButton extends TooltipChild {
+    constructor(index) {
+        super();
 
         this.actor = new St.Button({ name: 'workspaceButton',
                                  style_class: 'workspace-button',
@@ -1023,9 +967,9 @@ const WorkspaceButton = new Lang.Class({
         this.actor.label_actor = this.tooltip;
 
         this.setIndex(index);
-    },
+    }
 
-    _onClicked: function() {
+    _onClicked() {
         if ( this.index >= 0 &&
                 this.index < global.workspace_manager.n_workspaces ) {
             let metaWorkspace = global.workspace_manager.get_workspace_by_index(this.index);
@@ -1033,13 +977,13 @@ const WorkspaceButton = new Lang.Class({
         }
 
         return true;
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         this.tooltip.destroy();
-    },
+    }
 
-    setIndex: function(index) {
+    setIndex(index) {
         let active = global.workspace_manager.get_active_workspace_index();
         let tt_text = '';
 
@@ -1060,14 +1004,12 @@ const WorkspaceButton = new Lang.Class({
         this.tooltip.set_text(tt_text);
         this.index = index;
     }
-});
+};
 
-const WorkspaceSwitcher = new Lang.Class({
-    Name: 'WorkspaceSwitcher',
-    Extends: TooltipContainer,
-
-    _init: function() {
-        this.parent();
+const WorkspaceSwitcher =
+class WorkspaceSwitcher extends TooltipContainer {
+    constructor() {
+        super();
 
         this.actor = new St.BoxLayout({ name: 'workspaceSwitcher',
                                         style_class: 'workspace-switcher',
@@ -1085,9 +1027,9 @@ const WorkspaceSwitcher = new Lang.Class({
         this._onSwitchWorkspaceId = global.window_manager.connect(
                                 'switch-workspace',
                                 Lang.bind(this, this._updateButtons));
-    },
+    }
 
-    _createButtons: function() {
+    _createButtons() {
         this.actor.destroy_all_children();
         this.button = [];
 
@@ -1118,9 +1060,9 @@ const WorkspaceSwitcher = new Lang.Class({
 
         global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
                 false, nrows, ncols);
-    },
+    }
 
-    _updateButtons: function() {
+    _updateButtons() {
         let ncols = get_ncols();
         let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
@@ -1133,18 +1075,18 @@ const WorkspaceSwitcher = new Lang.Class({
         if ( this.row_indicator ) {
             this.row_indicator.queue_repaint();
         }
-    },
+    }
 
-    _showDialog: function(actor, event) {
+    _showDialog(actor, event) {
         if ( event.get_button() == 3 ) {
             let _workspaceDialog = new WorkspaceDialog();
             _workspaceDialog.open();
             return true;
         }
         return false;
-    },
+    }
 
-    _onScroll: function(actor, event) {
+    _onScroll(actor, event) {
         let direction = event.get_scroll_direction();
         let ncols = get_ncols();
         let active = global.workspace_manager.get_active_workspace_index();
@@ -1168,9 +1110,9 @@ const WorkspaceSwitcher = new Lang.Class({
         }
 
         return true;
-    },
+    }
 
-    _rowButtonPress: function(actor, event) {
+    _rowButtonPress(actor, event) {
         if ( event.get_button() != 1 ) {
             return false;
         }
@@ -1196,9 +1138,9 @@ const WorkspaceSwitcher = new Lang.Class({
         }
 
         return true;
-    },
+    }
 
-    _rowScroll: function(actor, event) {
+    _rowScroll(actor, event) {
         let direction = event.get_scroll_direction();
         let ncols = get_ncols();
         let active = global.workspace_manager.get_active_workspace_index();
@@ -1218,9 +1160,9 @@ const WorkspaceSwitcher = new Lang.Class({
         }
 
         return true;
-    },
+    }
 
-    _draw: function(area) {
+    _draw(area) {
         let [width, height] = area.get_surface_size();
         let themeNode = this.row_indicator.get_theme_node();
         let cr = area.get_context();
@@ -1241,18 +1183,17 @@ const WorkspaceSwitcher = new Lang.Class({
             cr.setLineWidth(2.0);
             cr.stroke();
         }
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         global.workspace_manager.disconnect(this._onNWorkspacesId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
     }
-});
+};
 
-const BottomPanel = new Lang.Class({
-    Name: 'BottomPanel',
-
-    _init : function() {
+const BottomPanel =
+class BottomPanel {
+    constructor() {
         this._settings = Convenience.getSettings();
 
         let rows = this._settings.get_int(SETTINGS_NUM_ROWS);
@@ -1320,26 +1261,26 @@ const BottomPanel = new Lang.Class({
             'actor-added', Lang.bind(this, this._onWindowActorAdded));
         this._onWindowActorRemovedID = global.window_group.connect(
             'actor-removed', Lang.bind(this, this._onWindowActorRemoved));
-    },
+    }
 
-    _onWindowActorAdded: function(container, metaWindowActor) {
+    _onWindowActorAdded(container, metaWindowActor) {
         let signalIds = [];
         ['allocation-changed', 'notify::visible'].forEach(s => {
             signalIds.push(metaWindowActor.connect(s,
                 Lang.bind(this, this._updateSolidStyle)));
         });
         this._trackedWindows.set(metaWindowActor, signalIds);
-    },
+    }
 
-    _onWindowActorRemoved: function(container, metaWindowActor) {
+    _onWindowActorRemoved(container, metaWindowActor) {
         this._trackedWindows.get(metaWindowActor).forEach(id => {
             metaWindowActor.disconnect(id);
         });
         this._trackedWindows.delete(metaWindowActor);
         this._updateSolidStyle();
-    },
+    }
 
-    relayout: function() {
+    relayout() {
         let bottom = Main.layoutManager.bottomMonitor;
 
         let h = this.actor.get_theme_node().get_height();
@@ -1348,26 +1289,26 @@ const BottomPanel = new Lang.Class({
         this.actor.set_position(bottom.x, bottom.y+bottom.height-h);
         this.actor.set_size(bottom.width, -1);
         this._updateSolidStyle();
-    },
+    }
 
-    _sessionUpdated: function() {
+    _sessionUpdated() {
         this.actor.visible = Main.sessionMode.hasWorkspaces;
-    },
+    }
 
-    _numRowsChanged: function() {
+    _numRowsChanged() {
         let rows = this._settings.get_int(SETTINGS_NUM_ROWS);
         if ( !isNaN(rows) && rows > 0 && rows < 6 ) {
             nrows = rows;
             this.workspaceSwitcher._createButtons();
         }
-    },
+    }
 
-    _enablePanelChanged: function() {
+    _enablePanelChanged() {
         enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
         this.relayout();
-    },
+    }
 
-    _showPanelChanged: function() {
+    _showPanelChanged() {
         let b = this._settings.get_value(SETTINGS_SHOW_PANEL).deep_unpack();
         if ( b.length > 1 ) {
             for ( let i=0; i<b.length; ++i ) {
@@ -1375,9 +1316,9 @@ const BottomPanel = new Lang.Class({
             }
         }
         this.relayout();
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         let monitorManager = Meta.MonitorManager.get();
         monitorManager.disconnect(this._monitorsChangedId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
@@ -1423,9 +1364,9 @@ const BottomPanel = new Lang.Class({
             });
         }
         this._trackedWindows = null;
-    },
+    }
 
-    _updateSolidStyle: function() {
+    _updateSolidStyle() {
         if (this.actor.has_style_pseudo_class('overview') || !Main.sessionMode.hasWindows) {
             this.actor.remove_style_class_name('solid');
             return;
@@ -1453,24 +1394,25 @@ const BottomPanel = new Lang.Class({
         else
             this.actor.remove_style_class_name('solid');
     }
-
-});
+};
 
 const FRIPPERY_TIMEOUT = 400;
 
-const FripperySwitcherPopup = new Lang.Class({
-    Name: 'FripperySwitcherPopup',
-    Extends:  WorkspaceSwitcherPopup.WorkspaceSwitcherPopup,
+var FripperySwitcherPopupList = GObject.registerClass(
+class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopupList {
+    _init() {
+        super._init();
+        this._itemSpacing = 6;
+    }
 
-    _getPreferredHeight : function (actor, forWidth, alloc) {
-        let children = this._list.get_children();
+    vfunc_get_preferred_height(forWidth) {
+        let children = this.get_children();
         let workArea = Main.layoutManager.getWorkAreaForMonitor(
                         Main.layoutManager.primaryIndex);
+        let themeNode = this.get_theme_node();
 
         let availHeight = workArea.height;
-        availHeight -= this.actor.get_theme_node().get_vertical_padding();
-        availHeight -= this._container.get_theme_node().get_vertical_padding();
-        availHeight -= this._list.get_theme_node().get_vertical_padding();
+        availHeight -= 2 * themeNode.get_vertical_padding();
 
         let height = 0;
         for (let i = 0; i < children.length; i++) {
@@ -1487,19 +1429,17 @@ const FripperySwitcherPopup = new Lang.Class({
 
         this._childHeight = (height - spacing) / nrows;
 
-        alloc.min_size = height;
-        alloc.natural_size = height;
-    },
+        return themeNode.adjust_preferred_height(height, height);
+    }
 
-    _getPreferredWidth : function (actor, forHeight, alloc) {
-        let children = this._list.get_children();
+    vfunc_get_preferred_width(forHeight) {
+        let children = this.get_children();
         let workArea = Main.layoutManager.getWorkAreaForMonitor(
                         Main.layoutManager.primaryIndex);
+        let themeNode = this.get_theme_node();
 
         let availWidth = workArea.width;
-        availWidth -= this.actor.get_theme_node().get_horizontal_padding();
-        availWidth -= this._container.get_theme_node().get_horizontal_padding();
-        availWidth -= this._list.get_theme_node().get_horizontal_padding();
+        availWidth -= 2 * themeNode.get_horizontal_padding();
 
         let ncols = get_ncols();
         let height = 0;
@@ -1517,15 +1457,19 @@ const FripperySwitcherPopup = new Lang.Class({
 
         this._childWidth = (width - spacing) / ncols;
 
-        alloc.min_size = width;
-        alloc.natural_size = width;
-    },
+        return [width, width];
+    }
 
-    _allocate : function (actor, box, flags) {
-        let children = this._list.get_children();
+    vfunc_allocate(box, flags) {
+        this.set_allocation(box, flags);
+
+        let themeNode = this.get_theme_node();
+        box = themeNode.get_content_box(box);
+
         let childBox = new Clutter.ActorBox();
 
         let ncols = get_ncols();
+        let children = this.get_children();
 
         for ( let ir=0; ir<nrows; ++ir ) {
             for ( let ic=0; ic<ncols; ++ic ) {
@@ -1541,9 +1485,19 @@ const FripperySwitcherPopup = new Lang.Class({
                 children[i].allocate(childBox, flags);
             }
         }
-    },
+    }
+});
 
-    _redisplay : function() {
+const FripperySwitcherPopup = GObject.registerClass(
+class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopup {
+    _init() {
+        super._init();
+        this._container.destroy_all_children();
+        this._list = new FripperySwitcherPopupList();
+        this._container.add_child(this._list);
+    }
+
+    _redisplay() {
         this._list.destroy_all_children();
 
         for (let i = 0; i < global.workspace_manager.n_workspaces; i++) {
@@ -1561,7 +1515,6 @@ const FripperySwitcherPopup = new Lang.Class({
                indicator = new St.Bin({ style_class: 'ws-switcher-box' });
 
            this._list.add_actor(indicator);
-
         }
 
         let workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex);
@@ -1569,26 +1522,26 @@ const FripperySwitcherPopup = new Lang.Class({
         let [containerMinWidth, containerNatWidth] = this._container.get_preferred_width(containerNatHeight);
         this._container.x = workArea.x + Math.floor((workArea.width - containerNatWidth) / 2);
         this._container.y = workArea.y + Math.floor((workArea.height - containerNatHeight) / 2);
-    },
+    }
 
-    display : function(direction, activeWorkspaceIndex) {
+    display(direction, activeWorkspaceIndex) {
         this._direction = direction;
         this._activeWorkspaceIndex = activeWorkspaceIndex;
 
         this._redisplay();
         if (this._timeoutId != 0)
             Mainloop.source_remove(this._timeoutId);
-        this._timeoutId = Mainloop.timeout_add(FRIPPERY_TIMEOUT, Lang.bind(this, this._onTimeout));
+        this._timeoutId = Mainloop.timeout_add(FRIPPERY_TIMEOUT, this._onTimeout.bind(this));
+        GLib.Source.set_name_by_id(this._timeoutId, '[gnome-shell] this._onTimeout');
         this._show();
     }
 });
 
 let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 
-const BottomPanelExtension = new Lang.Class({
-    Name: 'BottomPanelExtension',
-
-    _init: function(extensionMeta) {
+const BottomPanelExtension =
+class BottomPanelExtension {
+    constructor(extensionMeta) {
         Convenience.initTranslations();
 
         this._bottomPanel = null;
@@ -1612,8 +1565,7 @@ const BottomPanelExtension = new Lang.Class({
 
             if (isNaN(target)) {
                 direction = Meta.MotionDirection[target.toUpperCase()];
-                //newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
-                newWs = get_neighbour(workspaceManager.get_active_workspace(), direction);
+                newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
             } else if (target > 0) {
                 target--;
                 newWs = workspaceManager.get_workspace_by_index(target);
@@ -1665,9 +1617,9 @@ const BottomPanelExtension = new Lang.Class({
 
             this._workspaceSwitcherPopup = null;
         };
-    },
+    }
 
-    enable: function() {
+    enable() {
         if ( Main.sessionMode.currentMode == 'classic' ) {
             log('Frippery Bottom Panel does not work in Classic mode');
             return;
@@ -1680,9 +1632,9 @@ const BottomPanelExtension = new Lang.Class({
 
         this._bottomPanel = new BottomPanel();
         this._bottomPanel.relayout();
-    },
+    }
 
-    disable: function() {
+    disable() {
         if ( Main.sessionMode.currentMode == 'classic' ) {
             return;
         }
@@ -1700,7 +1652,7 @@ const BottomPanelExtension = new Lang.Class({
             this._bottomPanel = null;
         }
     }
-});
+};
 
 function init(extensionMeta) {
     return new BottomPanelExtension(extensionMeta);

@@ -1,13 +1,9 @@
-// Copyright (C) 2011-2018 R M Yorston
+// Copyright (C) 2011-2019 R M Yorston
 // Licence: GPLv2+
 
-const Clutter = imports.gi.Clutter;
-const Gio = imports.gi.Gio;
-const GLib = imports.gi.GLib;
+const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
 const Lang = imports.lang;
-const Shell = imports.gi.Shell;
 const Signals = imports.signals;
-const St = imports.gi.St;
 const Mainloop = imports.mainloop;
 
 const AppFavorites = imports.ui.appFavorites;
@@ -33,16 +29,14 @@ const SETTINGS_OTHER_APPS_ENABLED = 'other-apps-enabled';
 const SETTINGS_OTHER_APPS_POSITION = 'other-apps-position';
 const SETTINGS_OTHER_APPS = 'other-apps';
 
-const PanelLauncher = new Lang.Class({
-    Name: 'PanelLauncher',
-
-    _init: function(app) {
+const PanelLauncher =
+class PanelLauncher {
+    constructor(app) {
         this.actor = new St.Button({ style_class: 'panel-button',
                                      reactive: true });
-        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        scaleFactor = scaleFactor <= 0 ? 1 : scaleFactor;
-        this.iconSize = 24 / scaleFactor;
-        let icon = app.create_icon_texture(this.iconSize);
+        let gicon = app.app_info.get_icon();
+        let icon = new St.Icon({ gicon: gicon,
+                                 style_class: 'panel-launcher-icon'});
         this.actor.set_child(icon);
         this.actor._delegate = this;
         let text = app.get_name();
@@ -71,25 +65,23 @@ const PanelLauncher = new Lang.Class({
         this.actor.connect('button-press-event',
                 Lang.bind(this, this._onButtonPress));
         this.actor.opacity = 207;
+    }
 
-        this.actor.connect('notify::allocation', Lang.bind(this, this._alloc));
-    },
-
-    _onHoverChanged: function(actor) {
+    _onHoverChanged(actor) {
         actor.opacity = actor.hover ? 255 : 207;
-    },
+    }
 
-    _onButtonPress: function(actor, event) {
+    _onButtonPress(actor, event) {
         let button = event.get_button();
         if (button == 3) {
             this.popupMenu();
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
-    },
+    }
 
     // this code stolen from appDisplay.js
-    popupMenu: function() {
+    popupMenu() {
         if (!this._menu) {
             this._menu = new AppIconMenu(this);
             this._menu.connect('activate-window', Lang.bind(this, function (menu, window) {
@@ -110,22 +102,9 @@ const PanelLauncher = new Lang.Class({
         this._menuManager.ignoreRelease();
 
         return false;
-    },
+    }
 
-    _alloc: function() {
-        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        scaleFactor = scaleFactor <= 0 ? 1 : scaleFactor;
-        let allocation = this.actor.allocation;
-        let size = (allocation.y2 - allocation.y1 - 1)/scaleFactor - 2;
-        if ( size >= 24 && size != this.iconSize ) {
-            this.actor.get_child().destroy();
-            this.iconSize = size;
-            let icon = this._app.create_icon_texture(this.iconSize);
-            this.actor.set_child(icon);
-        }
-    },
-
-    showLabel: function() {
+    showLabel() {
         this.label.opacity = 0;
         this.label.show();
 
@@ -161,9 +140,9 @@ const PanelLauncher = new Lang.Class({
                            time: PANEL_LAUNCHER_LABEL_SHOW_TIME,
                            transition: 'easeOutQuad',
                          });
-    },
+    }
 
-    hideLabel: function() {
+    hideLabel() {
         this.label.opacity = 255;
         Tweener.addTween(this.label,
                          { opacity: 0,
@@ -173,20 +152,18 @@ const PanelLauncher = new Lang.Class({
                                this.label.hide();
                            })
                          });
-    },
+    }
 
-    destroy: function() {
+    destroy() {
         this.label.destroy();
         this.actor.destroy();
     }
-});
+};
 
-const ApplicationMenuItem = new Lang.Class({
-    Name: 'ApplicationMenuItem',
-    Extends: PopupMenu.PopupBaseMenuItem,
-
-    _init: function(app, params) {
-        PopupMenu.PopupBaseMenuItem.prototype._init.call(this, params);
+const ApplicationMenuItem =
+class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
+    constructor(app, params) {
+        super(params);
 
         let box = new St.BoxLayout({ name: 'applicationMenuBox',
                                      style_class: 'applications-menu-item-box'});
@@ -228,14 +205,12 @@ const ApplicationMenuItem = new Lang.Class({
             app.open_new_window(-1);
         }));
     }
-});
+};
 
-const PanelAppsButton = new Lang.Class({
-    Name: 'PanelAppsButton',
-    Extends: PanelMenu.Button,
-
-    _init: function(details) {
-        this.parent(0.5, details.description, false);
+const PanelAppsButton = GObject.registerClass(
+class PanelAppsButton extends PanelMenu.Button {
+    _init(details) {
+        super._init(0.5, details.description, false);
         this._showLabelTimeoutId = 0;
         this._resetHoverTimeoutId = 0;
         this._labelShowing = false;
@@ -253,18 +228,18 @@ const PanelAppsButton = new Lang.Class({
         this._changedId = details.change_object.connect(details.change_event, Lang.bind(this, this._redisplay));
 
         this._display();
-    },
+    }
 
-    _redisplay: function() {
+    _redisplay() {
         for ( let i=0; i<this._buttons.length; ++i ) {
             this._buttons[i].destroy();
         }
         this.menu.removeAll();
 
         this._display();
-    },
+    }
 
-    _display: function() {
+    _display() {
         let launchers = this._details.settings.get_strv(this._details.key);
 
         this._buttons = [];
@@ -288,10 +263,10 @@ const PanelAppsButton = new Lang.Class({
             this.menu.addMenuItem(menuItem, j);
             ++j;
         }
-    },
+    }
 
     // this routine stolen from dash.js
-    _onHover: function(launcher) {
+    _onHover(launcher) {
         if ( launcher.actor.hover ) {
             if (this._showLabelTimeoutId == 0) {
                 let timeout = this._labelShowing ?
@@ -324,9 +299,9 @@ const PanelAppsButton = new Lang.Class({
                     }));
             }
         }
-    },
+    }
 
-    _onDestroy: function() {
+    _onDestroy() {
         if ( this._installChangedId != 0 ) {
             Shell.AppSystem.get_default().disconnect(this._installChangedId);
             this._installChangedId = 0;
@@ -338,15 +313,12 @@ const PanelAppsButton = new Lang.Class({
         }
     }
 });
-Signals.addSignalMethods(PanelAppsButton.prototype);
 
 // this code stolen from appDisplay.js
-const AppIconMenu = new Lang.Class({
-    Name: 'AppIconMenu',
-    Extends: PopupMenu.PopupMenu,
-
-    _init: function(source) {
-        this.parent(source.actor, 0.5, St.Side.TOP);
+const AppIconMenu =
+class AppIconMenu extends PopupMenu.PopupMenu {
+    constructor(source) {
+        super(source.actor, 0.5, St.Side.TOP);
 
         // We want to keep the item hovered while the menu is up
         this.blockSourceEvents = true;
@@ -356,20 +328,23 @@ const AppIconMenu = new Lang.Class({
         this.actor.add_style_class_name('panel-menu');
 
         // Chain our visibility and lifecycle to that of the source
-        source.actor.connect('notify::mapped', Lang.bind(this, function () {
+        this._sourceMappedId = source.actor.connect('notify::mapped', () => {
             if (!source.actor.mapped)
                 this.close();
-        }));
-        source.actor.connect('destroy', Lang.bind(this, function () { this.actor.destroy(); }));
+        });
+        source.actor.connect('destroy', () => {
+            source.actor.disconnect(this._sourceMappedId);
+            this.destroy();
+        });
 
         Main.uiGroup.add_actor(this.actor);
-    },
+    }
 
-    _redisplay: function() {
+    _redisplay() {
         this.removeAll();
 
         // find windows on current and other workspaces
-        let activeWorkspace = global.screen.get_active_workspace();
+        let activeWorkspace = global.workspace_manager.get_active_workspace();
 
         let w_here = this._source._app.get_windows().filter(function(w) {
             return !w.skip_taskbar && w.get_workspace() == activeWorkspace;
@@ -455,9 +430,9 @@ const AppIconMenu = new Lang.Class({
                 }));
             }
         }
-    },
+    }
 
-    _appendWindows: function(use_submenu, text, windows) {
+    _appendWindows(use_submenu, text, windows) {
         let parent = this;
         if (windows.length && use_submenu) {
             // if we have lots of activatable windows create a submenu
@@ -473,20 +448,20 @@ const AppIconMenu = new Lang.Class({
                 this.emit('activate-window', window);
             }));
         }
-    },
+    }
 
-    _appendSeparator: function () {
+    _appendSeparator() {
         let separator = new PopupMenu.PopupSeparatorMenuItem();
         this.addMenuItem(separator);
-    },
+    }
 
-    _appendMenuItem: function(labelText) {
+    _appendMenuItem(labelText) {
         let item = new PopupMenu.PopupMenuItem(labelText);
         this.addMenuItem(item);
         return item;
-    },
+    }
 
-    popup: function(activatingButton) {
+    popup(activatingButton) {
         // this code stolen from PanelMenuButton
         // limit height of menu:  the menu should have scrollable submenus
         // for this to make sense
@@ -500,22 +475,21 @@ const AppIconMenu = new Lang.Class({
         this._redisplay();
         this.open();
     }
-});
+};
 Signals.addSignalMethods(AppIconMenu.prototype);
 
 const FAVORITES = 0;
 const OTHER_APPS = 1;
 
-const PanelFavoritesExtension = new Lang.Class({
-    Name: 'PanelFavoritesExtension',
-
-    _init: function(extensionMeta) {
+const PanelFavoritesExtension =
+class PanelFavoritesExtension {
+    constructor(extensionMeta) {
         Convenience.initTranslations();
         this._panelAppsButton = [ null, null ];
         this._settings = Convenience.getSettings();
-    },
+    }
 
-    _getPosition: function(key) {
+    _getPosition(key) {
         let position, box;
         // if key is false use left box, if true use right
         if (!this._settings.get_boolean(key)) {
@@ -535,9 +509,9 @@ const PanelFavoritesExtension = new Lang.Class({
             box = 'right';
         }
         return [position, box];
-    },
+    }
 
-    _configureButtons: function() {
+    _configureButtons() {
         let details = [
             {
                 description: _f('Favorites'),
@@ -606,28 +580,28 @@ const PanelFavoritesExtension = new Lang.Class({
                 }
             }
         }
-    },
+    }
 
-    enable: function() {
+    enable() {
         this._configureButtons();
         this._changedId = this._settings.connect('changed',
                 Lang.bind(this, this._configureButtons));
-    },
+    }
 
-    disable: function() {
+    disable() {
         if (this._changedId) {
             this._settings.disconnect(this._changedId);
         }
 
         for ( let i=0; i<this._panelAppsButton.length; ++i ) {
             if (this._panelAppsButton[i]) {
-                this._panelAppsButton[i].actor.destroy();
                 this._panelAppsButton[i].emit('destroy');
+                this._panelAppsButton[i].actor.destroy();
                 this._panelAppsButton[i] = null;
-	        }
+            }
         }
-    },
-});
+    }
+};
 
 function init(extensionMeta) {
     return new PanelFavoritesExtension(extensionMeta);
