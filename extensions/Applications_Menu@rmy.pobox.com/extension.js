@@ -1,8 +1,7 @@
 // Copyright (C) 2011-2019 R M Yorston
 // Licence: GPLv2+
 
-const { Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
-const Lang = imports.lang;
+const { Atk, Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
 
 const Layout = imports.ui.layout;
 const Main = imports.ui.main;
@@ -12,8 +11,8 @@ const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
 const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const Convenience = Me.imports.convenience;
+
+const appSys = Shell.AppSystem.get_default();
 
 const _ = imports.gettext.domain('gnome-shell').gettext;
 const _f = imports.gettext.domain('frippery-applications-menu').gettext;
@@ -22,14 +21,14 @@ const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
 const SETTINGS_ENABLE_HOT_CORNER = "enable-hot-corner";
 
-const ApplicationMenuItem =
+var ApplicationMenuItem = GObject.registerClass(
 class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
-    constructor(app, params) {
-        super(params);
+    _init(app, params) {
+        super._init(params);
 
         let box = new St.BoxLayout({ name: 'applicationMenuBox',
                                      style_class: 'applications-menu-item-box'});
-        this.actor.add_child(box);
+        this.add_child(box);
 
         let icon = app.create_icon_texture(24);
         box.add(icon, { x_fill: false, y_fill: false });
@@ -60,17 +59,39 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
         box.add(label);
 
         this.app = app;
+    }
 
-        this.connect('activate', Lang.bind(this, function() {
-            let id = this.app.get_id();
-            let app = Shell.AppSystem.get_default().lookup_app(id);
-            app.open_new_window(-1);
-        }));
+    activate(event) {
+        let id = this.app.get_id();
+        let app = Shell.AppSystem.get_default().lookup_app(id);
+        app.open_new_window(-1);
+        super.activate(event);
+    }
+});
+
+var Switch = class {
+    constructor(state) {
+        this.actor = new St.Bin({ style_class: 'toggle-switch',
+                                  accessible_role: Atk.Role.CHECK_BOX,
+                                  can_focus: true });
+        this.setToggleState(state);
+    }
+
+    setToggleState(state) {
+        if (state)
+            this.actor.add_style_pseudo_class('checked');
+        else
+            this.actor.remove_style_pseudo_class('checked');
+        this.state = state;
+    }
+
+    toggle() {
+        this.setToggleState(!this.state);
     }
 };
 
 const ToggleSwitch =
-class ToggleSwitch extends PopupMenu.Switch {
+class ToggleSwitch extends Switch {
     constructor(state) {
         super(state);
 
@@ -79,13 +100,10 @@ class ToggleSwitch extends PopupMenu.Switch {
         this.actor.add_style_class_name("applications-menu-toggle-switch");
 
         this.actor.connect('button-release-event',
-                Lang.bind(this, this._onButtonReleaseEvent));
-        this.actor.connect('key-press-event',
-                Lang.bind(this, this._onKeyPressEvent));
-        this.actor.connect('key-focus-in',
-                Lang.bind(this, this._onKeyFocusIn));
-        this.actor.connect('key-focus-out',
-                Lang.bind(this, this._onKeyFocusOut));
+                this._onButtonReleaseEvent.bind(this));
+        this.actor.connect('key-press-event', this._onKeyPressEvent.bind(this));
+        this.actor.connect('key-focus-in', this._onKeyFocusIn.bind(this));
+        this.actor.connect('key-focus-out', this._onKeyFocusOut.bind(this));
     }
 
     _onButtonReleaseEvent(actor, event) {
@@ -126,7 +144,7 @@ class ShowHideSwitch extends ToggleSwitch {
     }
 
     toggle() {
-        ToggleSwitch.prototype.toggle.call(this);
+        super.toggle();
 
         if ( this.state ) {
             this.item.show();
@@ -137,10 +155,18 @@ class ShowHideSwitch extends ToggleSwitch {
     }
 };
 
-const ApplicationsMenuDialog =
+const HotCornerSwitch =
+class HotCornerSwitch extends ToggleSwitch {
+    toggle() {
+        super.toggle();
+        Main.layoutManager._setHotCornerState(this.state);
+    }
+};
+
+var ApplicationsMenuDialog = GObject.registerClass(
 class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
-    constructor(button) {
-        super({ styleClass: 'applications-menu-dialog' });
+    _init(button) {
+        super._init({ styleClass: 'applications-menu-dialog' });
 
         this.button = button;
 
@@ -173,16 +199,12 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
                         text: _f('Hot corner') });
         layout.pack(label, 0, 2);
 
-        this.tlcSwitch = new ToggleSwitch(true);
+        this.tlcSwitch = new HotCornerSwitch(true);
         this.tlcSwitch.actor.set_accessible_name(_f('Hot corner'));
-        this.tlcSwitch.toggle = Lang.bind(this.tlcSwitch, function() {
-                PopupMenu.Switch.prototype.toggle.call(this);
-                Main.layoutManager._setHotCornerState(this.getState());
-            });
         layout.pack(this.tlcSwitch.actor, 1, 2);
 
-        let buttons = [{ action: Lang.bind(this, this.close),
-                         label:  _("Close"),
+        let buttons = [{ action: this.close.bind(this),
+                         label:  _('Close'),
                          default: true }];
 
         this.setButtons(buttons);
@@ -201,8 +223,7 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
         state = this.button._settings.get_boolean(SETTINGS_ENABLE_HOT_CORNER);
         this.tlcSwitch.setToggleState(state);
 
-        ModalDialog.ModalDialog.prototype.open.call(this,
-                global.get_current_time());
+        super.open();
     }
 
     close() {
@@ -215,15 +236,14 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
         state = this.tlcSwitch.getState();
         this.button._settings.set_boolean(SETTINGS_ENABLE_HOT_CORNER, state);
 
-        ModalDialog.ModalDialog.prototype.close.call(this,
-                global.get_current_time());
+        super.close();
     }
-};
+});
 
 const ApplicationsMenuButton = GObject.registerClass(
 class ApplicationsMenuButton extends PanelMenu.Button {
     _init() {
-        super._init(1.0, _("Applications"), false);
+        super._init(1.0, _('Applications'), false);
 
         this._box = new St.BoxLayout();
 
@@ -234,34 +254,35 @@ class ApplicationsMenuButton extends PanelMenu.Button {
                                  style_class: 'applications-menu-button-icon'});
         this._iconBox.child = logo;
         this._iconBox.opacity = 207;
-        this.actor.connect('notify::hover',
-                Lang.bind(this, this._onHoverChanged));
+        this.connect('notify::hover', this._onHoverChanged.bind(this));
 
         let label = new St.Label({ text: " " });
         this._box.add(label, { y_align: St.Align.MIDDLE, y_fill: false });
 
-        this._label = new St.Label({ text: _("Applications") });
+        this._label = new St.Label({ text: _('Applications') });
         this._box.add(this._label, { y_align: St.Align.MIDDLE, y_fill: false });
-        this.actor.add_actor(this._box);
+        this.add_actor(this._box);
 
-        this._settings = Convenience.getSettings();
+        this._settings = ExtensionUtils.getSettings();
         this._settingsChangedId = this._settings.connect('changed',
-                                   Lang.bind(this, this._settingsChanged));
+                                    this._settingsChanged.bind(this));
         this._settingsChanged();
 
-        this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
+        this.connect('destroy', this._onDestroy.bind(this));
 
-        this._appSystem = Shell.AppSystem.get_default();
-        this._installChangedId = this._appSystem.connect('installed-changed',
-                Lang.bind(this, this._rebuildMenu));
+        this._installChangedId = appSys.connect('installed-changed',
+                                    this._rebuildMenu.bind(this));
+
+        this._tree = new GMenu.Tree({ menu_basename: 'applications.menu' });
+        this._treeChangedId = this._tree.connect('changed',
+                                    this._rebuildMenu.bind(this));
 
         this._buildMenu();
 
-        this.actor.connect('button-release-event',
-                    Lang.bind(this, this._showDialog));
+        this.connect('button-release-event', this._showDialog.bind(this));
 
         Main.layoutManager.connect('startup-complete',
-                                   Lang.bind(this, this._setKeybinding));
+                                     this._setKeybinding.bind(this));
         this._setKeybinding();
     }
 
@@ -273,9 +294,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
         Main.wm.setCustomKeybindingHandler('panel-main-menu',
                                    Shell.ActionMode.NORMAL |
                                    Shell.ActionMode.OVERVIEW,
-                                   Lang.bind(this, function() {
-                                       this.menu.toggle();
-                                   }));
+                                   () => this.menu.toggle());
     }
 
     _onEvent(actor, event) {
@@ -299,24 +318,30 @@ class ApplicationsMenuButton extends PanelMenu.Button {
 
     _onDestroy() {
         if ( this._installChangedId != 0 ) {
-            this._appSystem.disconnect(this._installChangedId);
+            appSys.disconnect(this._installChangedId);
             this._installChangedId = 0;
         }
+
+        if ( this._treeChangedId != 0 ) {
+            this._tree.disconnect(this._treeChangedId);
+            this._treeChangedId = 0;
+        }
+        this._tree = null;
 
         if ( this._settingsChangedId != 0 ) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
         }
 
+        let handler = Main.sessionMode.hasOverview ?
+            Main.overview.toggle.bind(Main.overview) : null;
         Main.wm.setCustomKeybindingHandler('panel-main-menu',
                            Shell.ActionMode.NORMAL |
                            Shell.ActionMode.OVERVIEW,
-                           Main.sessionMode.hasOverview ?
-                           Lang.bind(Main.overview, Main.overview.toggle) :
-                           null);
+                           handler);
     }
 
-    // Stolen from appDisplay.js and apps-menu extension
+    // Stolen from apps-menu extension
     _loadCategory(dir, appList) {
         let iter = dir.iter();
         let nextType;
@@ -330,7 +355,9 @@ class ApplicationsMenuButton extends PanelMenu.Button {
                 catch (e) {
                     continue;
                 }
-                let app = this._appSystem.lookup_app(id);
+                let app = appSys.lookup_app(id);
+                if (!app)
+                    app = new Shell.App({ app_info: entry.get_app_info() });
                 if (app && app.get_app_info().should_show())
                     appList.push(app);
             } else if (nextType == GMenu.TreeItemType.DIRECTORY) {
@@ -342,26 +369,25 @@ class ApplicationsMenuButton extends PanelMenu.Button {
     }
 
     _buildSections() {
-        // Stolen from appDisplay.js and apps-menu extension
-        var tree = new GMenu.Tree({menu_basename: 'applications.menu'});
-        tree.load_sync();
-        var root = tree.get_root_directory();
+        // Stolen from apps-menu extension
+        this._tree.load_sync();
+        var root = this._tree.get_root_directory();
 
         var iter = root.iter();
         var nextType;
 
         var sections = [];
         while ((nextType = iter.next()) != GMenu.TreeItemType.INVALID) {
-            if (nextType == GMenu.TreeItemType.DIRECTORY) {
-                var dir = iter.get_directory();
-                if (dir.get_is_nodisplay())
-                    continue;
-                var appList = [];
-                this._loadCategory(dir, appList);
-                if ( appList.length != 0 ) {
-                    sections.push({ name: dir.get_name(),
-                                    apps: appList });
-                }
+            if (nextType != GMenu.TreeItemType.DIRECTORY)
+                continue;
+
+            var dir = iter.get_directory();
+            if (dir.get_is_nodisplay())
+                continue;
+            var appList = [];
+            this._loadCategory(dir, appList);
+            if ( appList.length != 0 ) {
+                sections.push({ name: dir.get_name(), apps: appList });
             }
         }
 
@@ -420,8 +446,8 @@ class ApplicationsMenuButton extends PanelMenu.Button {
 
 const ApplicationsMenuExtension =
 class ApplicationsMenuExtension {
-    constructor(extensionMeta) {
-        Convenience.initTranslations();
+    constructor() {
+        ExtensionUtils.initTranslations();
     }
 
     enable() {
@@ -489,6 +515,6 @@ class ApplicationsMenuExtension {
     }
 };
 
-function init(extensionMeta) {
-    return new ApplicationsMenuExtension(extensionMeta);
+function init() {
+    return new ApplicationsMenuExtension();
 }

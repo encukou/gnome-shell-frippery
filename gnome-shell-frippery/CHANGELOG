@@ -1,3 +1,23 @@
+20191009 - 3.34.2
+
+Change metadata for Applications Menu:  this version doesn't work for
+GNOME 3.32.
+Fix Applications Menu:  menu items need to be GObjects, apparently.
+
+20191003 - 3.34.1
+
+Fix preferences dialogs for Applications Menu and Bottom Panel.
+
+20190926 - 3.34.0
+
+Update Panel Favorites and Bottom Panel for GNOME 3.34.
+Remove support for transparency from Bottom Panel.
+
+20190529 - 3.32.2
+
+Update code to recent GNOME Shell standards.  This shouldn't result
+in any change to functionality.
+
 20190325 - 3.32.1
 
 Rewrite icon creation in Panel Favorites to avoid 100% CPU usage

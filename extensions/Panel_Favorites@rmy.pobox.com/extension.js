@@ -2,9 +2,7 @@
 // Licence: GPLv2+
 
 const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
-const Lang = imports.lang;
 const Signals = imports.signals;
-const Mainloop = imports.mainloop;
 
 const AppFavorites = imports.ui.appFavorites;
 const Main = imports.ui.main;
@@ -14,8 +12,6 @@ const PopupMenu = imports.ui.popupMenu;
 const Tweener = imports.ui.tweener;
 
 const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const Convenience = Me.imports.convenience;
 
 const _f = imports.gettext.domain('frippery-panel-favorites').gettext;
 
@@ -52,18 +48,18 @@ class PanelLauncher {
 
         this._app = app;
         this._menu = null;
-        this._menuManager = new PopupMenu.PopupMenuManager(this);
+        this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
 
-        this.actor.connect('clicked', Lang.bind(this, function() {
+        this.actor.connect('clicked', () => {
             this._app.open_new_window(-1);
             if ( Main.overview.visible ) {
                 Main.overview.hide();
             }
-        }));
+        });
         this.actor.connect('notify::hover',
-                Lang.bind(this, this._onHoverChanged));
+                this._onHoverChanged.bind(this));
         this.actor.connect('button-press-event',
-                Lang.bind(this, this._onButtonPress));
+                this._onButtonPress.bind(this));
         this.actor.opacity = 207;
     }
 
@@ -84,15 +80,13 @@ class PanelLauncher {
     popupMenu() {
         if (!this._menu) {
             this._menu = new AppIconMenu(this);
-            this._menu.connect('activate-window', Lang.bind(this, function (menu, window) {
-                if (window) {
-                    Main.activateWindow(window);
-                }
-            }));
-            this._menu.connect('open-state-changed', Lang.bind(this, function (menu, isPoppedUp) {
+            this._menu.connect('activate-window', (menu, window) => {
+                this.activateWindow(window);
+            });
+            this._menu.connect('open-state-changed', (menu, isPoppedUp) => {
                 if (!isPoppedUp)
                     this.actor.sync_hover();
-            }));
+            });
 
             this._menuManager.addMenu(this._menu);
         }
@@ -102,6 +96,14 @@ class PanelLauncher {
         this._menuManager.ignoreRelease();
 
         return false;
+    }
+
+    activateWindow(metaWindow) {
+        if (metaWindow) {
+            Main.activateWindow(metaWindow);
+        } else {
+            Main.overview.hide();
+        }
     }
 
     showLabel() {
@@ -148,9 +150,7 @@ class PanelLauncher {
                          { opacity: 0,
                            time: PANEL_LAUNCHER_LABEL_HIDE_TIME,
                            transition: 'easeOutQuad',
-                           onComplete: Lang.bind(this, function() {
-                               this.label.hide();
-                           })
+                           onComplete: () => this.label.hide()
                          });
     }
 
@@ -176,22 +176,22 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
 
         let matches = /^(OpenJDK Policy Tool) (.*)/.exec(name);
         if ( matches && matches.length == 3 ) {
-            name = matches[1] + "\n" + matches[2];
+            name = matches[1] + '\n' + matches[2];
         }
 
         matches = /^(OpenJDK 8 Policy Tool) (.*)/.exec(name);
         if ( matches && matches.length == 3 ) {
-            name = matches[1] + "\n" + matches[2];
+            name = matches[1] + '\n' + matches[2];
         }
 
         matches = /^(OpenJDK Monitoring & Management Console) (.*)/.exec(name);
         if ( matches && matches.length == 3 ) {
-            name = "OpenJDK Console\n" + matches[2];
+            name = 'OpenJDK Console\n' + matches[2];
         }
 
         matches = /^(OpenJDK 8 Monitoring & Management Console) (.*)/.exec(name);
         if ( matches && matches.length == 3 ) {
-            name = "OpenJDK 8 Console\n" + matches[2];
+            name = 'OpenJDK 8 Console\n' + matches[2];
         }
 
         let label = new St.Label({ text: name });
@@ -199,11 +199,11 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
 
         this.app = app;
 
-        this.connect('activate', Lang.bind(this, function() {
+        this.connect('activate', () => {
             let id = this.app.get_id();
             let app = Shell.AppSystem.get_default().lookup_app(id);
             app.open_new_window(-1);
-        }));
+        });
     }
 };
 
@@ -215,17 +215,17 @@ class PanelAppsButton extends PanelMenu.Button {
         this._resetHoverTimeoutId = 0;
         this._labelShowing = false;
 
-        this.actor.name = details.name;
+        this.name = details.name;
         this._details = details;
 
         this._box = new St.BoxLayout({ name: 'panelFavoritesBox',
                                         x_expand: true, y_expand: true,
                                         style_class: 'panel-favorites' });
-        this.actor.add_actor(this._box);
+        this.add_actor(this._box);
 
-        this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
-        this._installChangedId = Shell.AppSystem.get_default().connect('installed-changed', Lang.bind(this, this._redisplay));
-        this._changedId = details.change_object.connect(details.change_event, Lang.bind(this, this._redisplay));
+        this.connect('destroy', this._onDestroy.bind(this));
+        this._installChangedId = Shell.AppSystem.get_default().connect('installed-changed', this._redisplay.bind(this));
+        this._changedId = details.change_object.connect(details.change_event, this._redisplay.bind(this));
 
         this._display();
     }
@@ -254,9 +254,7 @@ class PanelAppsButton extends PanelMenu.Button {
             let launcher = new PanelLauncher(app);
             this._box.add(launcher.actor);
             launcher.actor.connect('notify::hover',
-                        Lang.bind(this, function() {
-                            this._onHover(launcher);
-                        }));
+                        () => this._onHover(launcher));
             this._buttons[j] = launcher;
 
             let menuItem = new ApplicationMenuItem(app);
@@ -271,32 +269,33 @@ class PanelAppsButton extends PanelMenu.Button {
             if (this._showLabelTimeoutId == 0) {
                 let timeout = this._labelShowing ?
                                 0 : PANEL_LAUNCHER_HOVER_TIMEOUT;
-                this._showLabelTimeoutId = Mainloop.timeout_add(timeout,
-                    Lang.bind(this, function() {
+                this._showLabelTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT, timeout,
+                    () => {
                         this._labelShowing = true;
                         launcher.showLabel();
                         this._showLabelTimeoutId = 0;
                         return GLib.SOURCE_REMOVE;
-                    }));
+                    });
                 if (this._resetHoverTimeoutId > 0) {
-                    Mainloop.source_remove(this._resetHoverTimeoutId);
+                    GLib.source_remove(this._resetHoverTimeoutId);
                     this._resetHoverTimeoutId = 0;
                 }
             }
         } else {
             if (this._showLabelTimeoutId > 0) {
-                Mainloop.source_remove(this._showLabelTimeoutId);
+                GLib.source_remove(this._showLabelTimeoutId);
                 this._showLabelTimeoutId = 0;
             }
             launcher.hideLabel();
             if (this._labelShowing) {
-                this._resetHoverTimeoutId = Mainloop.timeout_add(
-                    PANEL_LAUNCHER_HOVER_TIMEOUT,
-                    Lang.bind(this, function() {
+                this._resetHoverTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT, PANEL_LAUNCHER_HOVER_TIMEOUT,
+                    () => {
                         this._labelShowing = false;
                         this._resetHoverTimeoutId = 0;
                         return GLib.SOURCE_REMOVE;
-                    }));
+                    });
             }
         }
     }
@@ -375,20 +374,20 @@ class AppIconMenu extends PopupMenu.PopupMenu {
             let actions = appInfo.list_actions();
             if (this._source._app.can_open_new_window() &&
                 actions.indexOf('new-window') == -1) {
-                let item = this._appendMenuItem(_("New Window"));
-                item.connect('activate', Lang.bind(this, function() {
+                let item = this._appendMenuItem(_('New Window'));
+                item.connect('activate', () => {
                     this._source._app.open_new_window(-1);
                     this.emit('activate-window', null);
-                }));
+                });
             }
 
             for (let i = 0; i < actions.length; i++) {
                 let action = actions[i];
                 let item = this._appendMenuItem(appInfo.get_action_name(action));
-                item.connect('activate', Lang.bind(this, function(emitter, event) {
+                item.connect('activate', (emitter, event) => {
                     this._source._app.launch_action(action, event.get_time(), -1);
                     this.emit('activate-window', null);
-                }));
+                });
             }
 
             let canFavorite = global.settings.is_writable('favorite-apps');
@@ -397,37 +396,36 @@ class AppIconMenu extends PopupMenu.PopupMenu {
                 let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
 
                 if (isFavorite) {
-                    let item = this._appendMenuItem(_("Remove from Favorites"));
-                    item.connect('activate', Lang.bind(this, function() {
+                    let item = this._appendMenuItem(_('Remove from Favorites'));
+                    item.connect('activate', () => {
                         let favs = AppFavorites.getAppFavorites();
                         favs.removeFavorite(this._source._app.get_id());
-                    }));
+                    });
                 } else {
-                    let item = this._appendMenuItem(_("Add to Favorites"));
-                    item.connect('activate', Lang.bind(this, function() {
+                    let item = this._appendMenuItem(_('Add to Favorites'));
+                    item.connect('activate', () => {
                         let favs = AppFavorites.getAppFavorites();
                         favs.addFavorite(this._source.app.get_id());
-                    }));
+                    });
                 }
             }
 
             if (Shell.AppSystem.get_default().lookup_app('org.gnome.Software.desktop')) {
-                let item = this._appendMenuItem(_("Show Details"));
-                item.connect('activate', Lang.bind(this, function() {
+                let item = this._appendMenuItem(_('Show Details'));
+                item.connect('activate', () => {
                     let id = this._source._app.get_id();
                     let args = GLib.Variant.new('(ss)', [id, '']);
-                    Gio.DBus.get(Gio.BusType.SESSION, null,
-                        function(o, res) {
-                            let bus = Gio.DBus.get_finish(res);
-                            bus.call('org.gnome.Software',
-                                     '/org/gnome/Software',
-                                     'org.gtk.Actions', 'Activate',
-                                     GLib.Variant.new('(sava{sv})',
-                                                      ['details', [args], null]),
-                                     null, 0, -1, null, null);
-                            Main.overview.hide();
-                        });
-                }));
+                    Gio.DBus.get(Gio.BusType.SESSION, null, (o, res) => {
+                        let bus = Gio.DBus.get_finish(res);
+                        bus.call('org.gnome.Software',
+                                 '/org/gnome/Software',
+                                 'org.gtk.Actions', 'Activate',
+                                 GLib.Variant.new('(sava{sv})',
+                                                  ['details', [args], null]),
+                                 null, 0, -1, null, null);
+                        Main.overview.hide();
+                    });
+                });
             }
         }
     }
@@ -444,9 +442,8 @@ class AppIconMenu extends PopupMenu.PopupMenu {
             let window = windows[i];
             let item = new PopupMenu.PopupMenuItem(window.title);
             parent.addMenuItem(item);
-            item.connect('activate', Lang.bind(this, function() {
-                this.emit('activate-window', window);
-            }));
+            item.connect('activate', () =>
+                    this.emit('activate-window', window));
         }
     }
 
@@ -483,10 +480,10 @@ const OTHER_APPS = 1;
 
 const PanelFavoritesExtension =
 class PanelFavoritesExtension {
-    constructor(extensionMeta) {
-        Convenience.initTranslations();
+    constructor() {
+        ExtensionUtils.initTranslations();
         this._panelAppsButton = [ null, null ];
-        this._settings = Convenience.getSettings();
+        this._settings = ExtensionUtils.getSettings();
     }
 
     _getPosition(key) {
@@ -524,9 +521,9 @@ class PanelFavoritesExtension {
             {
                 description: _f('Other Applications'),
                 name: 'panelOtherApps',
-                settings: Convenience.getSettings(),
+                settings: ExtensionUtils.getSettings(),
                 key: SETTINGS_OTHER_APPS,
-                change_object: Convenience.getSettings(),
+                change_object: ExtensionUtils.getSettings(),
                 change_event: 'changed::' + SETTINGS_OTHER_APPS
             }
         ];
@@ -543,8 +540,8 @@ class PanelFavoritesExtension {
             else {
                 if (this._panelAppsButton[i]) {
                     // button is disabled but does exist, destroy it
-                    this._panelAppsButton[i].actor.destroy();
                     this._panelAppsButton[i].emit('destroy');
+                    this._panelAppsButton[i].destroy();
                     this._panelAppsButton[i] = null;
 	            }
             }
@@ -585,7 +582,7 @@ class PanelFavoritesExtension {
     enable() {
         this._configureButtons();
         this._changedId = this._settings.connect('changed',
-                Lang.bind(this, this._configureButtons));
+                this._configureButtons.bind(this));
     }
 
     disable() {
@@ -596,13 +593,13 @@ class PanelFavoritesExtension {
         for ( let i=0; i<this._panelAppsButton.length; ++i ) {
             if (this._panelAppsButton[i]) {
                 this._panelAppsButton[i].emit('destroy');
-                this._panelAppsButton[i].actor.destroy();
+                this._panelAppsButton[i].destroy();
                 this._panelAppsButton[i] = null;
             }
         }
     }
 };
 
-function init(extensionMeta) {
-    return new PanelFavoritesExtension(extensionMeta);
+function init() {
+    return new PanelFavoritesExtension();
 }
