@@ -1,16 +1,8 @@
 #bottomPanel {
     color: #ffffff;
-    background-color: rgba(0, 0, 0, 0.35);
-    /* transition from solid to transparent */
-    transition-duration: 500ms;
+    background-color: black;
     font-size: 10.5pt;
     height: 1.86em;
-}
-
-#bottomPanel.solid {
-    background-color: black;
-    /* transition from transparent to solid */
-    transition-duration: 300ms;
 }
 
 .bottom-panel {
@@ -51,6 +43,12 @@
     background: #444;
 }
 
+#bottomPanel.solid .workspace-button:outlined {
+    padding: 1px;
+    border: 2px solid white;
+    background: #222;
+}
+
 .workspace-row-indicator {
     width: 1.2em;
     -active-color: #fff;
@@ -76,11 +74,7 @@
 
 .window-list-item-box:focused {
     color: white;
-    background: rgba(40, 40, 40, 0.35);
     border-color: #bbb;
-}
-
-#bottomPanel.solid .window-list-item-box:focused {
     background: #282828;
 }
 

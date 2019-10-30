@@ -1,15 +1,9 @@
-// Copyright (C) 2015-2018 R M Yorston
+// Copyright (C) 2015-2019 R M Yorston
 // Licence: GPLv2+
 
-const Gio = imports.gi.Gio;
-const GLib = imports.gi.GLib;
-const Gtk = imports.gi.Gtk;
-const GObject = imports.gi.GObject;
-const Lang = imports.lang;
+const { Gio, GLib, GObject, Gtk } = imports.gi;
 
 const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const Convenience = Me.imports.convenience;
 
 const _f = imports.gettext.domain('frippery-bottom-panel').gettext;
 
@@ -22,20 +16,17 @@ const SETTINGS_SHOW_PANEL = 'show-panel';
 const SETTINGS_DYNAMIC_WORKSPACES = 'dynamic-workspaces';
 const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
 
-const BottomPanelSettingsWidget = new GObject.Class({
-	Name: 'BottomPanel.Prefs.BottomPanelSettingsWidget',
-    GTypeName: 'BottomPanelSettingsWidget',
-    Extends: Gtk.Grid,
-
-    _init : function(params) {
-        this.parent(params);
+const BottomPanelSettingsWidget = GObject.registerClass(
+class BottomPanelSettingsWidget extends Gtk.Grid {
+    _init(params) {
+        super._init(params);
         this.margin = 24;
         this.row_spacing = 6;
         this.column_spacing = 12;
         this.orientation = Gtk.Orientation.VERTICAL;
 
         // preferences come from all over the place
-        this.settings = Convenience.getSettings();
+        this.settings = ExtensionUtils.getSettings();
         this.or_settings = new Gio.Settings({ schema: OVERRIDES_SCHEMA });
         this.wm_settings = new Gio.Settings({ schema: WM_SCHEMA });
 
@@ -49,9 +40,9 @@ const BottomPanelSettingsWidget = new GObject.Class({
         let n_workspaces = this.wm_settings.get_int(SETTINGS_NUM_WORKSPACES);
         spin.set_value(n_workspaces);
         this.attach(spin, 1, 0, 1, 1);
-        spin.connect('value-changed', Lang.bind(this, function(widget) {
+        spin.connect('value-changed', (widget) => {
             this.wm_settings.set_int(SETTINGS_NUM_WORKSPACES, widget.get_value());
-        }));
+        });
 
         // number of rows (from bottom panel preferences)
         let nrows = this.settings.get_int(SETTINGS_NUM_ROWS);
@@ -63,9 +54,9 @@ const BottomPanelSettingsWidget = new GObject.Class({
                         snap_to_ticks: true });
         spin.set_value(nrows);
         this.attach(spin, 1, 1, 1, 1);
-        spin.connect('value-changed', Lang.bind(this, function(widget) {
+        spin.connect('value-changed', (widget) => {
             this.settings.set_int(SETTINGS_NUM_ROWS, widget.get_value());
-        }));
+        });
 
         // dynamic workspaces (from shell overrides)
         let check = new Gtk.CheckButton({ label: _f('Dynamic workspaces'),
@@ -79,7 +70,7 @@ const BottomPanelSettingsWidget = new GObject.Class({
                                     margin_top: 6 });
         let enable_panel = this.settings.get_boolean(SETTINGS_ENABLE_PANEL);
         enable.set_active(enable_panel);
-        enable.connect('toggled', Lang.bind(this, this._enablePanel));
+        enable.connect('toggled', this._enablePanel.bind(this));
         this.attach(enable, 0, 3, 2, 1);
 
         // show panel (from bottom panel preferences)
@@ -117,22 +108,22 @@ const BottomPanelSettingsWidget = new GObject.Class({
                     this.check[i].set_active(show_panel[i]);
                     grid.attach(this.check[i], c, r, 1, 1);
                     this.check[i].connect('toggled',
-                            Lang.bind(this, this._updatePanel));
+                            this._updatePanel.bind(this));
                 }
             }
         }
-    },
+    }
 
-    _enablePanel: function(widget) {
+    _enablePanel(widget) {
         let enabled = widget.get_active();
         this.settings.set_boolean(SETTINGS_ENABLE_PANEL, enabled);
 
         for ( let i=0; i<this.check.length; ++i ) {
             this.check[i].set_sensitive(enabled);
         }
-    },
+    }
 
-    _updatePanel: function(widget) {
+    _updatePanel(widget) {
         let show_panel = [];
         for ( let i=0; i<this.check.length; ++i ) {
             show_panel[i] = this.check[i].get_active();
@@ -144,7 +135,7 @@ const BottomPanelSettingsWidget = new GObject.Class({
 });
 
 function init() {
-    Convenience.initTranslations();
+    ExtensionUtils.initTranslations();
 }
 
 function buildPrefsWidget() {

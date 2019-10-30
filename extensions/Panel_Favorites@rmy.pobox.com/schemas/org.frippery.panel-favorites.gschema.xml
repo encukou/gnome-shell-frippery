@@ -1,0 +1,41 @@
+<schemalist gettext-domain="frippery-panel-favorites">
+  <schema id="org.frippery.panel-favorites" path="/org/frippery/panel-favorites/">
+    <key name="favorites-enabled" type="b">
+      <default>true</default>
+      <summary>Display Favorites</summary>
+      <description>
+        Whether to show the launchers for Favorite applications.
+      </description>
+    </key>
+    <key name="favorites-position" type="b">
+      <default>false</default>
+      <summary>Where to display Favorites</summary>
+      <description>
+        Whether to show the launchers for Favorite applications on the
+        left or right of the panel.
+      </description>
+    </key>
+    <key name="other-apps-enabled" type="b">
+      <default>false</default>
+      <summary>Display Other Apps</summary>
+      <description>
+        Whether to show the launchers for other applications.
+      </description>
+    </key>
+    <key name="other-apps-position" type="b">
+      <default>true</default>
+      <summary>Where to display Other Apps</summary>
+      <description>
+        Whether to show the launchers for other applications on the
+        left or right of the panel.
+      </description>
+    </key>
+    <key name="other-apps" type="as">
+      <default>[]</default>
+      <summary>Launchers for Other Apps</summary>
+      <description>
+        An array of desktop files for other applications to display.
+      </description>
+    </key>
+  </schema>
+</schemalist>
