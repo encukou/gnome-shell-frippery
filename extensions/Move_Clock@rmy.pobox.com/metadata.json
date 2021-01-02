@@ -1,5 +1,5 @@
 {
-    "shell-version": ["3.26", "3.28", "3.30", "3.32", "3.34"],
+    "shell-version": ["3.26", "3.28", "3.30", "3.32", "3.34", "3.36", "3.38"],
     "uuid": "Move_Clock@rmy.pobox.com",
     "name": "Frippery Move Clock",
     "description": "Move clock to left of status menu button",

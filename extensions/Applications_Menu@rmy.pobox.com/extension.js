@@ -1,9 +1,8 @@
-// Copyright (C) 2011-2019 R M Yorston
+// Copyright (C) 2011-2020 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
 
-const Layout = imports.ui.layout;
 const Main = imports.ui.main;
 const ModalDialog = imports.ui.modalDialog;
 const Panel = imports.ui.panel;
@@ -19,10 +18,9 @@ const _f = imports.gettext.domain('frippery-applications-menu').gettext;
 
 const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
-const SETTINGS_ENABLE_HOT_CORNER = "enable-hot-corner";
 
-var ApplicationMenuItem = GObject.registerClass(
-class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
+var AM_ApplicationMenuItem = GObject.registerClass(
+class AM_ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
     _init(app, params) {
         super._init(params);
 
@@ -31,7 +29,9 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
         this.add_child(box);
 
         let icon = app.create_icon_texture(24);
-        box.add(icon, { x_fill: false, y_fill: false });
+        icon.x_align = Clutter.ActorAlign.CENTER;
+        icon.y_align = Clutter.ActorAlign.CENTER;
+        box.add(icon);
 
         let name = app.get_name();
 
@@ -55,7 +55,9 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
             name = "OpenJDK 8 Console\n" + matches[2];
         }
 
-        let label = new St.Label({ text: name });
+        let label = new St.Label({
+                            text: name,
+                            y_align: Clutter.ActorAlign.CENTER});
         box.add(label);
 
         this.app = app;
@@ -155,14 +157,6 @@ class ShowHideSwitch extends ToggleSwitch {
     }
 };
 
-const HotCornerSwitch =
-class HotCornerSwitch extends ToggleSwitch {
-    toggle() {
-        super.toggle();
-        Main.layoutManager._setHotCornerState(this.state);
-    }
-};
-
 var ApplicationsMenuDialog = GObject.registerClass(
 class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
     _init(button) {
@@ -170,38 +164,33 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
 
         this.button = button;
 
-        let layout= new Clutter.TableLayout();
+        let layout= new Clutter.GridLayout();
         let table = new St.Widget({reactive: true,
                               layout_manager: layout,
-                              styleClass: 'applications-menu-dialog-table'});
+                              y_align: Clutter.ActorAlign.START,
+                              styleClass: 'applications-menu-dialog-box'});
         layout.hookup_style(table);
-        this.contentLayout.add(table, { y_align: St.Align.START });
+        this.contentLayout.add(table);
 
-        let label = new St.Label(
-                        { style_class: 'applications-menu-dialog-label',
-                          text: _f('Icon') });
-        layout.pack(label, 0, 0);
+        let label = new St.Label({
+                            style_class: 'applications-menu-dialog-label',
+                            y_align: Clutter.ActorAlign.CENTER,
+                            text: _f('Icon')});
+        layout.attach(label, 0, 0, 1, 1);
 
         this.iconSwitch = new ShowHideSwitch(button._iconBox, true);
         this.iconSwitch.actor.set_accessible_name(_f('Icon'));
-        layout.pack(this.iconSwitch.actor, 1, 0);
+        layout.attach(this.iconSwitch.actor, 1, 0, 1, 1);
 
-        label = new St.Label(
-                        { style_class: 'applications-menu-dialog-label',
-                          text: _f('Text') });
-        layout.pack(label, 0, 1);
+        label = new St.Label({
+                        style_class: 'applications-menu-dialog-label',
+                        y_align: Clutter.ActorAlign.CENTER,
+                        text: _f('Text')});
+        layout.attach(label, 0, 1, 1, 1);
 
         this.labelSwitch = new ShowHideSwitch(button._label, true);
         this.labelSwitch.actor.set_accessible_name(_f('Text'));
-        layout.pack(this.labelSwitch.actor, 1, 1);
-
-        label = new St.Label({ style_class: 'applications-menu-dialog-label',
-                        text: _f('Hot corner') });
-        layout.pack(label, 0, 2);
-
-        this.tlcSwitch = new HotCornerSwitch(true);
-        this.tlcSwitch.actor.set_accessible_name(_f('Hot corner'));
-        layout.pack(this.tlcSwitch.actor, 1, 2);
+        layout.attach(this.labelSwitch.actor, 1, 1, 1, 1);
 
         let buttons = [{ action: this.close.bind(this),
                          label:  _('Close'),
@@ -209,8 +198,8 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
 
         this.setButtons(buttons);
 
-        this.dialogLayout._buttonKeys[Clutter.Escape] =
-            this.dialogLayout._buttonKeys[Clutter.Return];
+        this.dialogLayout._buttonKeys[Clutter.KEY_Escape] =
+            this.dialogLayout._buttonKeys[Clutter.KEY_Return];
     }
 
     open() {
@@ -219,9 +208,6 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
 
         state = this.button._settings.get_boolean(SETTINGS_SHOW_TEXT);
         this.labelSwitch.setToggleState(state);
-
-        state = this.button._settings.get_boolean(SETTINGS_ENABLE_HOT_CORNER);
-        this.tlcSwitch.setToggleState(state);
 
         super.open();
     }
@@ -232,9 +218,6 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
 
         state = this.labelSwitch.getState();
         this.button._settings.set_boolean(SETTINGS_SHOW_TEXT, state);
-
-        state = this.tlcSwitch.getState();
-        this.button._settings.set_boolean(SETTINGS_ENABLE_HOT_CORNER, state);
 
         super.close();
     }
@@ -247,8 +230,9 @@ class ApplicationsMenuButton extends PanelMenu.Button {
 
         this._box = new St.BoxLayout();
 
-        this._iconBox = new St.Bin();
-        this._box.add(this._iconBox, { y_align: St.Align.MIDDLE, y_fill: false });
+        this._iconBox = new St.Bin({
+                                y_align: Clutter.ActorAlign.CENTER});
+        this._box.add(this._iconBox);
 
         let logo = new St.Icon({ icon_name: 'start-here',
                                  style_class: 'applications-menu-button-icon'});
@@ -256,11 +240,15 @@ class ApplicationsMenuButton extends PanelMenu.Button {
         this._iconBox.opacity = 207;
         this.connect('notify::hover', this._onHoverChanged.bind(this));
 
-        let label = new St.Label({ text: " " });
-        this._box.add(label, { y_align: St.Align.MIDDLE, y_fill: false });
+        let label = new St.Label({
+                            text: " ",
+                            y_align: Clutter.ActorAlign.CENTER});
+        this._box.add(label);
 
-        this._label = new St.Label({ text: _('Applications') });
-        this._box.add(this._label, { y_align: St.Align.MIDDLE, y_fill: false });
+        this._label = new St.Label({
+                              text: _('Applications'),
+                              y_align: Clutter.ActorAlign.CENTER});
+        this._box.add(this._label);
         this.add_actor(this._box);
 
         this._settings = ExtensionUtils.getSettings();
@@ -297,7 +285,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
                                    () => this.menu.toggle());
     }
 
-    _onEvent(actor, event) {
+	vfunc_event(event) {
         if ( event.type() == Clutter.EventType.BUTTON_RELEASE &&
                 event.get_button() == 3 ) {
             return Clutter.EVENT_PROPAGATE;
@@ -313,7 +301,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
             return Clutter.EVENT_STOP;
         }
 
-        return PanelMenu.Button.prototype._onEvent.call(this, actor, event);
+        return PanelMenu.Button.prototype.vfunc_event.call(this, event);
     }
 
     _onDestroy() {
@@ -403,7 +391,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
 
             for ( let j=0; j<section.apps.length; ++j ) {
                 let app = section.apps[j];
-                let menuItem = new ApplicationMenuItem(app);
+                let menuItem = new AM_ApplicationMenuItem(app);
 
                 submenu.menu.addMenuItem(menuItem, j);
             }
@@ -438,9 +426,6 @@ class ApplicationsMenuButton extends PanelMenu.Button {
         else {
             this._label.hide();
         }
-
-        let state = this._settings.get_boolean(SETTINGS_ENABLE_HOT_CORNER);
-        Main.layoutManager._setHotCornerState(state);
     }
 });
 
@@ -457,40 +442,20 @@ class ApplicationsMenuExtension {
             return;
         }
 
-        // inject a flag into the hot corner update function so we can
-        // prevent updates when we've disabled the hot corner
-        Layout.LayoutManager.prototype._origUpdateHotCorners =
-                Layout.LayoutManager.prototype._updateHotCorners;
-        Layout.LayoutManager.prototype._updateHotCorners = function() {
-           if ( this._hotCornersEnabled ) {
-               this._origUpdateHotCorners();
-           }
-        };
-
-        Layout.LayoutManager.prototype._setHotCornerState = function(state) {
-            // only do work if state is changing
-            if ( state && !this._hotCornersEnabled ) {
-                this._origUpdateHotCorners();
-            }
-            else if ( !state && this._hotCornersEnabled ) {
-                this.hotCorners.forEach(function(corner) {
-                    if (corner)
-                        corner.destroy();
-                });
-                this.hotCorners = [];
-            }
-            this._hotCornersEnabled = state;
-        };
-        Main.layoutManager._hotCornersEnabled = true;
-
         this.activitiesButton = Main.panel.statusArea['activities'];
         if ( this.activitiesButton ) {
             this.activitiesButton.container.hide();
         }
 
-        this.applicationsButton = new ApplicationsMenuButton();
-        Main.panel.addToStatusArea('frippery-apps', this.applicationsButton,
-                0, 'left');
+        if ( this.applicationsButton ) {
+            this.applicationsButton.container.show();
+            this.applicationsButton._settingsChanged();
+        }
+        else {
+            this.applicationsButton = new ApplicationsMenuButton();
+            Main.panel.addToStatusArea('frippery-apps', this.applicationsButton,
+                    0, 'left');
+        }
     }
 
     disable() {
@@ -499,17 +464,12 @@ class ApplicationsMenuExtension {
             return;
         }
 
-        Layout.LayoutManager.prototype._updateHotCorners =
-                Layout.LayoutManager.prototype._origUpdateHotCorners;
-        delete Layout.LayoutManager.prototype._origUpdateHotCorners;
-        delete Layout.LayoutManager.prototype._disableHotCorners;
-        delete Main.layoutManager._hotCornersEnabled;
-        Main.layoutManager._updateHotCorners();
+        if ( this.applicationsButton ) {
+            this.applicationsButton.container.hide();
+        }
 
-        Main.panel.menuManager.removeMenu(this.applicationsButton.menu);
-        this.applicationsButton.destroy();
-
-        if ( this.activitiesButton ) {
+        if ( this.activitiesButton &&
+                Main.sessionMode.panel.left.indexOf('activities') >= 0 ) {
             this.activitiesButton.container.show();
         }
     }

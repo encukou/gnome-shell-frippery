@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2019 R M Yorston
+// Copyright (C) 2011-2020 R M Yorston
 // Licence: GPLv2+
 
 const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
@@ -9,7 +9,6 @@ const Main = imports.ui.main;
 const Panel = imports.ui.panel;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
-const Tweener = imports.ui.tweener;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 
@@ -137,21 +136,23 @@ class PanelLauncher {
         }
 
         this.label.set_position(x, y);
-        Tweener.addTween(this.label,
-                         { opacity: 255,
-                           time: PANEL_LAUNCHER_LABEL_SHOW_TIME,
-                           transition: 'easeOutQuad',
-                         });
+        this.label.remove_all_transitions();
+        this.label.ease({
+            opacity: 255,
+            duration: PANEL_LAUNCHER_LABEL_SHOW_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD
+       });
     }
 
     hideLabel() {
         this.label.opacity = 255;
-        Tweener.addTween(this.label,
-                         { opacity: 0,
-                           time: PANEL_LAUNCHER_LABEL_HIDE_TIME,
-                           transition: 'easeOutQuad',
-                           onComplete: () => this.label.hide()
-                         });
+        this.label.remove_all_transitions();
+        this.label.ease({
+            opacity: 0,
+            duration: PANEL_LAUNCHER_LABEL_HIDE_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => this.label.hide()
+        });
     }
 
     destroy() {
@@ -160,17 +161,19 @@ class PanelLauncher {
     }
 };
 
-const ApplicationMenuItem =
-class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
-    constructor(app, params) {
-        super(params);
+const PF_ApplicationMenuItem = GObject.registerClass(
+class PF_ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
+    _init(app, params) {
+        super._init(params);
 
         let box = new St.BoxLayout({ name: 'applicationMenuBox',
                                      style_class: 'applications-menu-item-box'});
         this.actor.add_child(box);
 
         let icon = app.create_icon_texture(24);
-        box.add(icon, { x_fill: false, y_fill: false });
+        icon.x_align = Clutter.ActorAlign.CENTER;
+        icon.y_align = Clutter.ActorAlign.CENTER;
+        box.add(icon);
 
         let name = app.get_name();
 
@@ -205,7 +208,7 @@ class ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
             app.open_new_window(-1);
         });
     }
-};
+});
 
 const PanelAppsButton = GObject.registerClass(
 class PanelAppsButton extends PanelMenu.Button {
@@ -257,7 +260,7 @@ class PanelAppsButton extends PanelMenu.Button {
                         () => this._onHover(launcher));
             this._buttons[j] = launcher;
 
-            let menuItem = new ApplicationMenuItem(app);
+            let menuItem = new PF_ApplicationMenuItem(app);
             this.menu.addMenuItem(menuItem, j);
             ++j;
         }
@@ -586,12 +589,19 @@ class PanelFavoritesExtension {
     }
 
     disable() {
+        let role = [ 'panel-favorites', 'panel-other-apps' ];
+
         if (this._changedId) {
             this._settings.disconnect(this._changedId);
         }
 
         for ( let i=0; i<this._panelAppsButton.length; ++i ) {
             if (this._panelAppsButton[i]) {
+                let indicator = Main.panel.statusArea[role[i]];
+                if (indicator) {
+                    let parent = indicator.container.get_parent();
+                    parent.remove_actor(indicator.container);
+                }
                 this._panelAppsButton[i].emit('destroy');
                 this._panelAppsButton[i].destroy();
                 this._panelAppsButton[i] = null;
