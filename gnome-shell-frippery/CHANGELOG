@@ -1,3 +1,37 @@
+20201003 - 3.38.0
+
+Update for GNOME 3.38.
+Use num-workspaces setting from org.gnome.desktop.wm.preferences in
+Bottom Panel settings dialog, as was already done in prefs.js.
+Silence warnings about use of object.actor for CheckBox.
+
+20200421 - 3.36.1
+
+Use different names for ApplicationMenuItem in Panel Favorites and
+Applications Menu.
+When Panel Favorites is disabled remove its button from the panel.
+Rather than destroy the Applications Menu button when it's disabled
+just hide it so it can be shown if re-enabled.  Update settings when
+the Applications Menu is re-enabled.
+Remove support for turning off the hot corner in Applications Menu:
+this is now controlled by org.gnome.desktop.interface.enable-hot-corners
+which is exposed by GNOME Tweaks.
+When Applications Menu is disabled only show the Activities button if
+it's needed by the current session mode.
+
+20200315 - 3.36.0
+
+Update for GNOME 3.36.  Cope with the usual random code churn:
+- TableLayout is no longer available; use GridLayout instead.
+- When adding children to containers the runtime complains that "Some
+  code tried to set a deprecated GObject property".  Properties need
+  to be set on children before they're added.
+- Symbols like Clutter.Return have been removed; use replacements of the
+  form Clutter.KEY_Return.
+- The _onEvent method in PanelMenu.Button has been renamed vfunc_event.
+- ApplicationMenuItem in Panel Favorites needs to be registered as a
+  GObject.
+
 20191009 - 3.34.2
 
 Change metadata for Applications Menu:  this version doesn't work for

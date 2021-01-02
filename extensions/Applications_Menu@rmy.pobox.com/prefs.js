@@ -6,7 +6,6 @@ const _f = imports.gettext.domain('frippery-applications-menu').gettext;
 
 const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
-const SETTINGS_ENABLE_HOT_CORNER = "enable-hot-corner";
 
 const ApplicationsMenuSettingsWidget = GObject.registerClass(
 class ApplicationsMenuSettingsWidget extends Gtk.Grid {
@@ -25,11 +24,6 @@ class ApplicationsMenuSettingsWidget extends Gtk.Grid {
 
         check = new Gtk.CheckButton({ label: _f("Text"), margin_top: 6 });
         this.settings.bind(SETTINGS_SHOW_TEXT, check, 'active',
-                Gio.SettingsBindFlags.DEFAULT);
-        this.add(check);
-
-        check = new Gtk.CheckButton({ label: _f("Hot corner"), margin_top: 6 });
-        this.settings.bind(SETTINGS_ENABLE_HOT_CORNER, check, 'active',
                 Gio.SettingsBindFlags.DEFAULT);
         this.add(check);
     }

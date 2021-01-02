@@ -83,8 +83,8 @@
     -y-offset: 6px;
 }
 
-.workspace-dialog-table {
-    spacing-rows: 0.75em;
+.workspace-dialog-grid {
+    spacing-rows: 1.0em;
     spacing-columns: 2.5em;
 }
 

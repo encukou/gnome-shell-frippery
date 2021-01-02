@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2019 R M Yorston
+// Copyright (C) 2011-2020 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
@@ -8,7 +8,6 @@ const CheckBox = imports.ui.checkBox;
 const Main = imports.ui.main;
 const ModalDialog = imports.ui.modalDialog;
 const PopupMenu = imports.ui.popupMenu;
-const Tweener = imports.ui.tweener;
 const WindowManager = imports.ui.windowManager;
 const WorkspaceSwitcherPopup = imports.ui.workspaceSwitcherPopup;
 
@@ -21,10 +20,12 @@ const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
 const BOTTOM_PANEL_HOVER_TIMEOUT = 300;
 
 const OVERRIDES_SCHEMA = 'org.gnome.mutter';
+const WM_SCHEMA = 'org.gnome.desktop.wm.preferences';
 
 const SETTINGS_NUM_ROWS = 'num-rows';
 const SETTINGS_ENABLE_PANEL = 'enable-panel';
 const SETTINGS_SHOW_PANEL = 'show-panel';
+const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
 
 let show_panel = [];
 let enable_panel = true;
@@ -122,22 +123,24 @@ class TooltipChild {
         }
 
         this.tooltip.set_position(x, y);
-        Tweener.addTween(this.tooltip,
-                     { opacity: 255,
-                       time: BOTTOM_PANEL_TOOLTIP_SHOW_TIME,
-                       transition: 'easeOutQuad',
-                     });
+        this.tooltip.remove_all_transitions();
+        this.tooltip.ease({
+            opacity: 255,
+            duration: BOTTOM_PANEL_TOOLTIP_SHOW_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD
+        });
     }
 
     hideTooltip() {
         this.tooltip.opacity = 255;
 
-        Tweener.addTween(this.tooltip,
-                     { opacity: 0,
-                       time: BOTTOM_PANEL_TOOLTIP_HIDE_TIME,
-                       transition: 'easeOutQuad',
-                       onComplete: () => this.tooltip.hide()
-                     });
+        this.tooltip.remove_all_transitions();
+        this.tooltip.ease({
+            opacity: 0,
+            duration: BOTTOM_PANEL_TOOLTIP_HIDE_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => this.tooltip.hide()
+        });
     }
 };
 
@@ -350,9 +353,11 @@ class WindowListItem extends TooltipChild {
         this.metaWindow = metaWindow;
         this.myWindowList = myWindowList;
 
-        this.actor = new St.Bin({ reactive: true,
-                                  track_hover: true,
-                                  can_focus: true });
+        this.actor = new St.Bin({
+                            reactive: true,
+                            track_hover: true,
+                            y_align: Clutter.ActorAlign.CENTER,
+                            can_focus: true});
         this.actor._delegate = this;
 
         let title = metaWindow.title ? metaWindow.title : ' ';
@@ -367,18 +372,23 @@ class WindowListItem extends TooltipChild {
         this.actor.add_actor(this._itemBox);
 
         this.icon = app ? app.create_icon_texture(16) :
-                          new St.Icon({ icon_name: 'icon-missing',
-                                        icon_size: 16 });
+                          new St.Icon({
+                                    icon_name: 'icon-missing',
+                                    icon_size: 16,
+                                    x_align: Clutter.ActorAlign.CENTER,
+                                    y_align: Clutter.ActorAlign.CENTER});
 
         if ( !metaWindow.showing_on_its_workspace() ) {
             title = '[' + title + ']';
         }
 
-        this.label = new St.Label({ style_class: 'window-list-item-label',
-                                    text: title });
+        this.label = new St.Label({
+                            style_class: 'window-list-item-label',
+                            y_align: Clutter.ActorAlign.CENTER,
+                            text: title});
         this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-        this._itemBox.add(this.icon, { x_fill: false, y_fill: false });
-        this._itemBox.add(this.label, { x_fill: true, y_fill: false });
+        this._itemBox.add(this.icon);
+        this._itemBox.add(this.label);
 
         this.rightClickMenu = new WindowListItemMenu(metaWindow, this.actor);
 
@@ -395,7 +405,7 @@ class WindowListItem extends TooltipChild {
                                     this._onButtonPress.bind(this));
         this.actor.connect('button-release-event',
                                     this._onButtonRelease.bind(this));
-        this.actor.connect('allocation-changed',
+        this.actor.connect('notify::allocation',
                                     this._updateIconGeometry.bind(this));
 
         this._onFocus();
@@ -508,8 +518,10 @@ class WindowList extends TooltipContainer {
     constructor() {
         super();
 
-        this.actor = new St.BoxLayout({ name: 'windowList',
-                                        style_class: 'window-list-box' });
+        this.actor = new St.BoxLayout({
+                            name: 'windowList',
+                            x_expand: true,
+                            style_class: 'window-list-box' });
         this.actor._delegate = this;
         this._windows = [];
         this.dragIndex = -1;
@@ -813,8 +825,8 @@ class EnablePanelSwitch extends ToggleSwitch {
         this._settings.set_boolean(SETTINGS_ENABLE_PANEL, this.state);
 
         for ( let i=0; i<this._dialog.cb.length; ++i ) {
-            this._dialog.cb[i].actor.reactive = this.state;
-            this._dialog.cb[i].actor.can_focus = this.state;
+            this._dialog.cb[i].reactive = this.state;
+            this._dialog.cb[i].can_focus = this.state;
         }
     }
 };
@@ -824,76 +836,94 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
     _init() {
         super._init({ styleClass: 'workspace-dialog' });
 
-        let layout = new Clutter.TableLayout();
-        let table = new St.Widget({reactive: true,
-                              layout_manager: layout,
-                              styleClass: 'workspace-dialog-table'});
+        this.wm_settings = new Gio.Settings({ schema: WM_SCHEMA });
+
+        let layout = new Clutter.GridLayout();
+        let table = new St.Widget({
+                            reactive: true,
+                            layout_manager: layout,
+                            y_align: Clutter.ActorAlign.START,
+                            styleClass: 'workspace-dialog-grid'});
         layout.hookup_style(table);
-        this.contentLayout.add(table, { y_align: St.Align.START });
+        this.contentLayout.add(table);
 
-        let label = new St.Label(
-                        { style_class: 'workspace-dialog-label',
-                          text: _f('Number of Workspaces') });
-        layout.pack(label, 0, 0);
+        let label = new St.Label({
+                            style_class: 'workspace-dialog-label',
+                            y_align: Clutter.ActorAlign.CENTER,
+                            text: _f('Number of Workspaces')});
+        layout.attach(label, 0, 0, 1, 1);
 
-        let entry = new St.Entry({ style_class: 'workspace-dialog-entry', can_focus: true });
+        let entry = new St.Entry({
+                            style_class: 'workspace-dialog-entry',
+                            can_focus: true});
 
         this._workspaceEntry = entry.clutter_text;
-        layout.pack(entry, 1, 0);
+        layout.attach(entry, 1, 0, 1, 1);
         this.setInitialKeyFocus(this._workspaceEntry);
 
-        label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Rows in workspace switcher') });
-        layout.pack(label, 0, 1);
+        label = new St.Label({
+                        style_class: 'workspace-dialog-label',
+                        y_align: Clutter.ActorAlign.CENTER,
+                        text: _f('Rows in workspace switcher')});
+        layout.attach(label, 0, 1, 1, 1);
 
-        entry = new St.Entry({ style_class: 'workspace-dialog-entry', can_focus: true });
+        entry = new St.Entry({
+                        style_class: 'workspace-dialog-entry',
+                        can_focus: true});
 
         this._rowEntry = entry.clutter_text;
-        layout.pack(entry, 1, 1);
+        layout.attach(entry, 1, 1, 1, 1);
 
-        label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Dynamic workspaces') });
-        layout.pack(label, 0, 2);
+        label = new St.Label({
+                        style_class: 'workspace-dialog-label',
+                        y_align: Clutter.ActorAlign.CENTER,
+                        text: _f('Dynamic workspaces')});
+        layout.attach(label, 0, 2, 1, 1);
 
         this._dynamicWorkspaces = new DynamicWorkspacesSwitch();
-        layout.pack(this._dynamicWorkspaces.actor, 1, 2);
+        layout.attach(this._dynamicWorkspaces.actor, 1, 2, 1, 1);
 
-        label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Enable panel') });
-        layout.pack(label, 0, 3);
+        label = new St.Label({
+                        style_class: 'workspace-dialog-label',
+                        y_align: Clutter.ActorAlign.CENTER,
+                        text: _f('Enable panel')});
+        layout.attach(label, 0, 3, 1, 1);
 
         this._enablePanel = new EnablePanelSwitch(this);
-        layout.pack(this._enablePanel.actor, 1, 3);
+        layout.attach(this._enablePanel.actor, 1, 3, 1, 1);
 
-        label = new St.Label({ style_class: 'workspace-dialog-label',
-                                   text: _f('Panel visible in workspace') });
-        layout.pack(label, 0, 4);
-        layout.child_set(label, { column_span: 2 });
+        label = new St.Label({
+                        style_class: 'workspace-dialog-label',
+                        y_align: Clutter.ActorAlign.CENTER,
+                        text: _f('Panel visible in workspace')});
+        layout.attach(label, 0, 4, 2, 1);
 
-        let cblayout = new Clutter.TableLayout();
-        let cbtable = new St.Widget({reactive: true,
-                              layout_manager: cblayout,
-                              styleClass: 'workspace-dialog-table'});
+        let cblayout = new Clutter.GridLayout();
+        let cbtable = new St.Widget({
+                        reactive: true,
+                        layout_manager: cblayout,
+                        x_align: Clutter.ActorAlign.CENTER,
+                        styleClass: 'workspace-dialog-grid'});
+        cblayout.hookup_style(cbtable);
 
         let ncols = get_ncols();
+        let num_ws = this.wm_settings.get_int(SETTINGS_NUM_WORKSPACES);
         this.cb = [];
         for ( let r=0; r<nrows; ++r ) {
             for ( let c=0; c<ncols; ++c ) {
                 let i = r*ncols + c;
-                if ( i < global.workspace_manager.n_workspaces ) {
+                if ( i < num_ws ) {
                     this.cb[i] = new CheckBox.CheckBox();
-                    this.cb[i].actor.checked = show_panel[i];
-                    cblayout.pack(this.cb[i].actor, c, r);
-                    cblayout.child_set(this.cb[i].actor, { x_fill: false });
+                    this.cb[i].checked = show_panel[i];
+                    cblayout.attach(this.cb[i], c, r, 1, 1);
                 }
             }
         }
-        layout.pack(cbtable, 0, 5);
-        layout.child_set(cbtable, { column_span: 2 });
+        layout.attach(cbtable, 0, 5, 2, 1);
 
         let buttons = [{ action: this.close.bind(this),
                          label:  _('Cancel'),
-                         key:    Clutter.Escape},
+                         key:    Clutter.KEY_Escape},
                        { action: () => {
                                     this._updateValues();
                                     this.close();
@@ -905,7 +935,8 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
     }
 
     open() {
-        this._workspaceEntry.set_text(''+global.workspace_manager.n_workspaces);
+        let num_ws = this.wm_settings.get_int(SETTINGS_NUM_WORKSPACES);
+        this._workspaceEntry.set_text(''+num_ws);
         this._rowEntry.set_text(''+nrows);
         this._dynamicWorkspaces.updateState();
 
@@ -916,8 +947,8 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
         let settings = ExtensionUtils.getSettings();
         let changed = false;
         for ( let i=0; i<this.cb.length; ++i ) {
-            if ( show_panel[i] != this.cb[i].actor.checked ) {
-                show_panel[i] = this.cb[i].actor.checked;
+            if ( show_panel[i] != this.cb[i].checked ) {
+                show_panel[i] = this.cb[i].checked;
                 changed = true;
             }
         }
@@ -929,20 +960,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
 
         let num = parseInt(this._workspaceEntry.get_text());
         if ( !isNaN(num) && num >= 2 && num <= 32 ) {
-            let old_num = global.workspace_manager.n_workspaces;
-            if ( num > old_num ) {
-                for ( let i=old_num; i<num; ++i ) {
-                    global.workspace_manager.append_new_workspace(false,
-                            global.get_current_time());
-                }
-            }
-            else if ( num < old_num ) {
-                for ( let i=old_num-1; i>=num; --i ) {
-                    let ws = global.workspace_manager.get_workspace_by_index(i);
-                    global.workspace_manager.remove_workspace(ws,
-                            global.get_current_time());
-                }
-            }
+            this.wm_settings.set_int(SETTINGS_NUM_WORKSPACES, num);
         }
 
         let rows = parseInt(this._rowEntry.get_text());
@@ -966,7 +984,9 @@ class WorkspaceButton extends TooltipChild {
         this.actor.connect('clicked', this._onClicked.bind(this));
         this.actor.connect('destroy', this._onDestroy.bind(this));
 
-        this.label = new St.Label();
+        this.label = new St.Label({
+                            x_align: Clutter.ActorAlign.CENTER,
+                            y_align: Clutter.ActorAlign.CENTER});
         this.actor.set_child(this.label);
 
         this.tooltip = new St.Label({ style_class: 'bottom-panel-tooltip'});
@@ -1223,7 +1243,7 @@ class BottomPanel {
         this.actor._delegate = this;
 
         let windowList = new WindowList();
-        this.actor.add(windowList.actor, { expand: true });
+        this.actor.add(windowList.actor);
 
         this.workspaceSwitcher = new WorkspaceSwitcher();
         this.actor.add(this.workspaceSwitcher.actor);
