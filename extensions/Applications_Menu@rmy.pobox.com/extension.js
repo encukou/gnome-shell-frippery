@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2020 R M Yorston
+// Copyright (C) 2011-2021 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
@@ -209,7 +209,7 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
         state = this.button._settings.get_boolean(SETTINGS_SHOW_TEXT);
         this.labelSwitch.setToggleState(state);
 
-        super.open();
+        super.open(global.get_current_time());
     }
 
     close() {
@@ -219,7 +219,7 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
         state = this.labelSwitch.getState();
         this.button._settings.set_boolean(SETTINGS_SHOW_TEXT, state);
 
-        super.close();
+        super.close(global.get_current_time());
     }
 });
 
