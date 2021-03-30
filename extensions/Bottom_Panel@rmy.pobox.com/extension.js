@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2020 R M Yorston
+// Copyright (C) 2011-2021 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
@@ -940,7 +940,11 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
         this._rowEntry.set_text(''+nrows);
         this._dynamicWorkspaces.updateState();
 
-        super.open();
+        super.open(global.get_current_time());
+    }
+
+    close() {
+        super.close(global.get_current_time());
     }
 
     _updateValues() {
@@ -1398,8 +1402,8 @@ class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcher
         return [width, width];
     }
 
-    vfunc_allocate(box, flags) {
-        this.set_allocation(box, flags);
+    vfunc_allocate(box) {
+        this.set_allocation(box);
 
         let themeNode = this.get_theme_node();
         box = themeNode.get_content_box(box);
@@ -1420,7 +1424,7 @@ class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcher
                 let y = box.y1 + ir * (this._childHeight + this._itemSpacing);
                 childBox.y1 = y;
                 childBox.y2 = y + this._childHeight;
-                children[i].allocate(childBox, flags);
+                children[i].allocate(childBox);
             }
         }
     }

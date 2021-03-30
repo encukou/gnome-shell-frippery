@@ -1,3 +1,14 @@
+20210326 - 40.0
+
+Update for GNOME 40.
+- Pass the current time to dialog open()/close() functions.  The
+  lack of this caused a fatal error on X.
+- Update preference dialogs to GTK 4.
+- Reduce the spacing between icons in Panel Favorites.
+
+Remove flags argument in calls to Clutter.Actor.set_allocation and
+Clutter.Actor.allocate.
+
 20201003 - 3.38.0
 
 Update for GNOME 3.38.

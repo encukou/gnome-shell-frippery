@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2019 R M Yorston
+// Copyright (C) 2015-2021 R M Yorston
 // Licence: GPLv2+
 
 const { Gio, GLib, GObject, Gtk } = imports.gi;
@@ -19,11 +19,15 @@ const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
 const BottomPanelSettingsWidget = GObject.registerClass(
 class BottomPanelSettingsWidget extends Gtk.Grid {
     _init(params) {
-        super._init(params);
-        this.margin = 24;
-        this.row_spacing = 6;
-        this.column_spacing = 12;
-        this.orientation = Gtk.Orientation.VERTICAL;
+        super._init({
+            halign: Gtk.Align.CENTER,
+            margin_top: 24,
+            margin_bottom: 24,
+            margin_start: 24,
+            margin_end: 24,
+            column_spacing: 12,
+            row_spacing: 6,
+        });
 
         // preferences come from all over the place
         this.settings = ExtensionUtils.getSettings();
@@ -79,13 +83,11 @@ class BottomPanelSettingsWidget extends Gtk.Grid {
                                  halign: Gtk.Align.START });
         this.attach(label, 0, 4, 2, 1);
 
-        let align = new Gtk.Alignment({ left_padding: 12 });
-        this.add(align);
-
         let grid = new Gtk.Grid({ orientation: Gtk.Orientation.VERTICAL,
+                                  halign: Gtk.Align.CENTER,
                                   row_spacing: 6,
                                   column_spacing: 6 });
-        align.add(grid);
+        this.attach(grid, 0, 5, 2, 1);
 
         let show_panel = this.settings.get_value(SETTINGS_SHOW_PANEL).deep_unpack();
         if ( show_panel.length < n_workspaces ) {
@@ -139,8 +141,5 @@ function init() {
 }
 
 function buildPrefsWidget() {
-    let widget = new BottomPanelSettingsWidget();
-    widget.show_all();
-
-    return widget;
+    return new BottomPanelSettingsWidget();
 }

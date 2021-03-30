@@ -7,7 +7,7 @@ akin to that of GNOME 2.
 
 Move the clock
 
-  Move the clock from the centre of the panel towards the right. This
+  Move the clock from the centre of the panel towards the right.  This
   isn't a very significant change, but it was the first extension I wrote.
 
 Favourites in panel
@@ -73,22 +73,24 @@ They are distributed under the terms of the GNU General Public License,
 version 2 or later.  See the COPYING file for details.
 
 The Frippery extensions are intended to be used together to provide a
-GNOME 2-like experience. However, if you'd like to control which are
-enabled the best option is GNOME Tweak Tool (gnome-tweak-tool in the
-Fedora repositories). Alternatively you can use the brute-force method
-and just delete any you don't want. After installation you'll need to
-restart the shell to make the extensions take effect: enter 'r' in the
-Alt+F2 dialog or log out and in again. Once the extensions are known to
-the Shell you can use GNOME Tweak Tool to enable and disable individual
-extensions without needing to restart.
+GNOME 2-like experience.  However, if you'd like to control which are
+enabled the best option is GNOME Tweaks (gnome-tweaks in the Fedora
+repositories).  From GNOME 40 extension management moved to a separate
+application: gnome-extensions-app.  Alternatively you can use the
+brute-force method and just delete any you don't want.  After
+installation you'll need to restart the shell to make the extensions
+take effect: enter 'r' in the Alt+F2 dialog or log out and in again.
+Once the extensions are known to the Shell you can use GNOME Tweaks or
+Extensions to enable and disable individual extensions without needing
+to restart.
 
-The extensions hook into the very core of the GNOME shell. It's almost
+The extensions hook into the very core of the GNOME shell.  It's almost
 inevitable that future changes to the shell will break them (though I'll
 make every effort to unbreak them).
 
 During development and testing I have only the Frippery extensions
-installed. There will be conflicts between extensions and it's impossible
-to test all combinations. I do try to resolve conflicts that are brought
+installed.  There will be conflicts between extensions and it's impossible
+to test all combinations.  I do try to resolve conflicts that are brought
 to my attention but all I can guarantee is that the Frippery extensions
 are compatible with one another.
 
