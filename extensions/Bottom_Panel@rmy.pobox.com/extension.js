@@ -19,7 +19,7 @@ const BOTTOM_PANEL_TOOLTIP_SHOW_TIME = 0.15;
 const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
 const BOTTOM_PANEL_HOVER_TIMEOUT = 300;
 
-const OVERRIDES_SCHEMA = 'org.gnome.mutter';
+const MUTTER_SCHEMA = 'org.gnome.mutter';
 const WM_SCHEMA = 'org.gnome.desktop.wm.preferences';
 
 const SETTINGS_NUM_ROWS = 'num-rows';
@@ -717,9 +717,21 @@ class WindowList extends TooltipContainer {
     }
 };
 
-let nrows = 1;
+function get_nrows() {
+    let mutter_settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
+    if (!mutter_settings.get_boolean('dynamic-workspaces')) {
+        let settings = ExtensionUtils.getSettings();
+
+        let rows = settings.get_int(SETTINGS_NUM_ROWS);
+        if (!isNaN(rows) && rows > 0 && rows < 6) {
+            return rows;
+        }
+    }
+    return 1;
+}
 
 function get_ncols() {
+    let nrows = get_nrows();
     let ncols = Math.floor(global.workspace_manager.n_workspaces/nrows);
     if ( global.workspace_manager.n_workspaces%nrows != 0 )
        ++ncols
@@ -793,7 +805,7 @@ const DynamicWorkspacesSwitch =
 class DynamicWorkspacesSwitch extends ToggleSwitch {
     constructor() {
         super(true);
-        this._settings = new Gio.Settings({ schema: OVERRIDES_SCHEMA });
+        this._settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
         this.updateState();
     }
 
@@ -907,6 +919,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
         cblayout.hookup_style(cbtable);
 
         let ncols = get_ncols();
+        let nrows = get_nrows();
         let num_ws = this.wm_settings.get_int(SETTINGS_NUM_WORKSPACES);
         this.cb = [];
         for ( let r=0; r<nrows; ++r ) {
@@ -937,7 +950,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
     open() {
         let num_ws = this.wm_settings.get_int(SETTINGS_NUM_WORKSPACES);
         this._workspaceEntry.set_text(''+num_ws);
-        this._rowEntry.set_text(''+nrows);
+        this._rowEntry.set_text(''+get_nrows());
         this._dynamicWorkspaces.updateState();
 
         super.open(global.get_current_time());
@@ -968,11 +981,8 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
         }
 
         let rows = parseInt(this._rowEntry.get_text());
-        if ( !isNaN(rows) && rows > 0 && rows < 6 && rows != nrows ) {
-            if ( rows != nrows ) {
-                nrows = rows;
-                settings.set_int(SETTINGS_NUM_ROWS, nrows);
-            }
+        if (!isNaN(rows) && rows > 0 && rows < 6) {
+            settings.set_int(SETTINGS_NUM_ROWS, rows);
         }
     }
 });
@@ -1052,9 +1062,13 @@ class WorkspaceSwitcher extends TooltipContainer {
         this.actor._delegate = this;
         this.button = [];
         this._createButtons();
+        this._settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
 
         this._onNWorkspacesId = global.workspace_manager.connect(
                                 'notify::n-workspaces',
+                                this._createButtons.bind(this));
+        this._onDynamicWorkspacesId = this._settings.connect(
+                                'changed::dynamic-workspaces',
                                 this._createButtons.bind(this));
         this._onSwitchWorkspaceId = global.window_manager.connect(
                                 'switch-workspace',
@@ -1066,6 +1080,7 @@ class WorkspaceSwitcher extends TooltipContainer {
         this.button = [];
 
         this.row_indicator = null;
+        let nrows = get_nrows();
         if ( nrows > 1 ) {
             this.row_indicator = new St.DrawingArea({ reactive: true,
                                     style_class: 'workspace-row-indicator' });
@@ -1149,6 +1164,7 @@ class WorkspaceSwitcher extends TooltipContainer {
         }
 
         let ncols = get_ncols();
+        let nrows = get_nrows();
         let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
@@ -1202,6 +1218,7 @@ class WorkspaceSwitcher extends TooltipContainer {
         let inactive_color = themeNode.get_color('-inactive-color');
 
         let ncols = get_ncols();
+        let nrows = get_nrows();
         let active = global.workspace_manager.get_active_workspace_index();
         let row = Math.floor(active/ncols);
 
@@ -1218,6 +1235,7 @@ class WorkspaceSwitcher extends TooltipContainer {
 
     _onDestroy() {
         global.workspace_manager.disconnect(this._onNWorkspacesId);
+        this._settings.disconnect(this._onDynamicWorkspacesId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
     }
 };
@@ -1226,11 +1244,6 @@ const BottomPanel =
 class BottomPanel {
     constructor() {
         this._settings = ExtensionUtils.getSettings();
-
-        let rows = this._settings.get_int(SETTINGS_NUM_ROWS);
-        if ( !isNaN(rows) && rows > 0 && rows < 6 ) {
-            nrows = rows;
-        }
 
         enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
 
@@ -1296,7 +1309,6 @@ class BottomPanel {
     _numRowsChanged() {
         let rows = this._settings.get_int(SETTINGS_NUM_ROWS);
         if ( !isNaN(rows) && rows > 0 && rows < 6 ) {
-            nrows = rows;
             this.workspaceSwitcher._createButtons();
         }
     }
@@ -1352,6 +1364,7 @@ class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcher
         let workArea = Main.layoutManager.getWorkAreaForMonitor(
                         Main.layoutManager.primaryIndex);
         let themeNode = this.get_theme_node();
+        let nrows = get_nrows();
 
         let availHeight = workArea.height;
         availHeight -= 2 * themeNode.get_vertical_padding();
@@ -1411,6 +1424,7 @@ class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcher
         let childBox = new Clutter.ActorBox();
 
         let ncols = get_ncols();
+        let nrows = get_nrows();
         let children = this.get_children();
 
         for ( let ir=0; ir<nrows; ++ir ) {
@@ -1506,7 +1520,11 @@ class BottomPanelExtension {
             let newWs;
             let direction;
 
-            if (isNaN(target)) {
+            if (target == 'last') {
+                direction = Meta.MotionDirection.RIGHT;
+                newWs = workspaceManager.get_workspace_by_index(
+                            workspaceManager.n_workspaces - 1);
+            } else if (isNaN(target)) {
                 direction = Meta.MotionDirection[target.toUpperCase()];
                 newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
             } else if (target > 0) {
@@ -1515,9 +1533,9 @@ class BottomPanelExtension {
 
                 // FIXME add proper support for switching to numbered workspace
                 if (workspaceManager.get_active_workspace().index() > target)
-                    direction = Meta.MotionDirection.UP;
+                    direction = Meta.MotionDirection.LEFT;
                 else
-                    direction = Meta.MotionDirection.DOWN;
+                    direction = Meta.MotionDirection.RIGHT;
             }
 
             if (!newWs)
@@ -1547,6 +1565,10 @@ class BottomPanelExtension {
                         this._showWorkspaceSwitcher.bind(this));
             Meta.keybindings_set_custom_handler('switch-to-workspace-down',
                         this._showWorkspaceSwitcher.bind(this));
+            Meta.keybindings_set_custom_handler('switch-to-workspace-last',
+                        this._showWorkspaceSwitcher.bind(this));
+            Meta.keybindings_set_custom_handler('switch-to-workspace-1',
+                        this._showWorkspaceSwitcher.bind(this));
             Meta.keybindings_set_custom_handler('move-to-workspace-left',
                         this._showWorkspaceSwitcher.bind(this));
             Meta.keybindings_set_custom_handler('move-to-workspace-right',
@@ -1554,6 +1576,10 @@ class BottomPanelExtension {
             Meta.keybindings_set_custom_handler('move-to-workspace-up',
                         this._showWorkspaceSwitcher.bind(this));
             Meta.keybindings_set_custom_handler('move-to-workspace-down',
+                        this._showWorkspaceSwitcher.bind(this));
+            Meta.keybindings_set_custom_handler('move-to-workspace-last',
+                        this._showWorkspaceSwitcher.bind(this));
+            Meta.keybindings_set_custom_handler('move-to-workspace-1',
                         this._showWorkspaceSwitcher.bind(this));
 
             this._workspaceSwitcherPopup = null;
@@ -1581,7 +1607,7 @@ class BottomPanelExtension {
         }
 
         global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
-                false, -1, 1);
+                false, 1, -1);
 
         WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
             this._origShowWorkspaceSwitcher;
