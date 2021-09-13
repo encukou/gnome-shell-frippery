@@ -1,3 +1,18 @@
+20210525 - 40.2
+
+Bottom Panel:  Move width specification for window list items from the
+label to the containing box.  Otherwise the text suffers from strange
+truncation and isn't always updated properly.
+
+20210502 - 40.1
+
+Correctly display workspace switcher popup when moving to first or last
+workspace.
+When dynamic workspaces are enabled Bottom Panel should ignore the
+number of rows set by the user and display a single row of workspaces.
+When Bottom Panel is disabled the workspace layout should revert to
+horizontal.
+
 20210326 - 40.0
 
 Update for GNOME 40.
