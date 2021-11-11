@@ -353,23 +353,11 @@ class WindowListItem extends TooltipChild {
         this.metaWindow = metaWindow;
         this.myWindowList = myWindowList;
 
-        this.actor = new St.Bin({
+        this.actor = new St.BoxLayout({
+                            style_class: 'window-list-item-box',
                             reactive: true,
-                            track_hover: true,
-                            y_align: Clutter.ActorAlign.CENTER,
-                            can_focus: true});
+                            track_hover: true});
         this.actor._delegate = this;
-
-        let title = metaWindow.title ? metaWindow.title : ' ';
-
-        this.tooltip = new St.Label({ style_class: 'bottom-panel-tooltip'});
-        this.tooltip.set_text(title);
-        this.tooltip.hide();
-        Main.layoutManager.addChrome(this.tooltip);
-        this.actor.label_actor = this.tooltip;
-
-        this._itemBox = new St.BoxLayout({style_class: 'window-list-item-box'});
-        this.actor.add_actor(this._itemBox);
 
         this.icon = app ? app.create_icon_texture(16) :
                           new St.Icon({
@@ -378,17 +366,12 @@ class WindowListItem extends TooltipChild {
                                     x_align: Clutter.ActorAlign.CENTER,
                                     y_align: Clutter.ActorAlign.CENTER});
 
-        if ( !metaWindow.showing_on_its_workspace() ) {
-            title = '[' + title + ']';
-        }
-
         this.label = new St.Label({
                             style_class: 'window-list-item-label',
-                            y_align: Clutter.ActorAlign.CENTER,
-                            text: title});
+                            y_align: Clutter.ActorAlign.CENTER});
         this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-        this._itemBox.add(this.icon);
-        this._itemBox.add(this.label);
+        this.actor.add(this.icon);
+        this.actor.add(this.label);
 
         this.rightClickMenu = new WindowListItemMenu(metaWindow, this.actor);
 
@@ -408,7 +391,12 @@ class WindowListItem extends TooltipChild {
         this.actor.connect('notify::allocation',
                                     this._updateIconGeometry.bind(this));
 
+        this.tooltip = new St.Label({ style_class: 'bottom-panel-tooltip'});
+        this.tooltip.hide();
+        Main.layoutManager.addChrome(this.tooltip);
+
         this._onFocus();
+        this._onMinimizedChanged();
     }
 
     _getIndex() {
@@ -417,21 +405,37 @@ class WindowListItem extends TooltipChild {
 
     _onTitleChanged() {
         let title = this.metaWindow.title;
-        this.tooltip.set_text(title);
+
+        if (!title)
+            return;
+
+        this.tooltip.text = title;
         if ( this.metaWindow.minimized ) {
             title = '[' + title + ']';
         }
-        this.label.set_text(title);
+        this.label.text = title;
     }
 
     _onMinimizedChanged() {
-        if ( this.metaWindow.minimized ) {
+        if (this.metaWindow.minimized) {
             this.icon.opacity = 127;
-            this.label.text = '[' + this.metaWindow.title + ']';
+            this.actor.add_style_pseudo_class('minimized');
         }
         else {
             this.icon.opacity = 255;
-            this.label.text = this.metaWindow.title;
+            this.actor.remove_style_pseudo_class('minimized');
+        }
+        this._onTitleChanged();
+    }
+
+    _onFocus() {
+        if (this.metaWindow.has_focus()) {
+            this.actor.add_style_pseudo_class('focused');
+            this.label.add_style_pseudo_class('focused');
+        }
+        else {
+            this.actor.remove_style_pseudo_class('focused');
+            this.label.remove_style_pseudo_class('focused');
         }
     }
 
@@ -484,22 +488,6 @@ class WindowListItem extends TooltipChild {
                 this.myWindowList._refreshItems();
             }
             this.myWindowList.dragIndex = -1;
-        }
-    }
-
-    _onFocus() {
-        if ( this.metaWindow.has_focus() ) {
-            this._itemBox.add_style_pseudo_class('focused');
-        }
-        else {
-            this._itemBox.remove_style_pseudo_class('focused');
-        }
-
-        if ( this.metaWindow.minimized ) {
-            this._itemBox.add_style_pseudo_class('minimized');
-        }
-        else {
-            this._itemBox.remove_style_pseudo_class('minimized');
         }
     }
 

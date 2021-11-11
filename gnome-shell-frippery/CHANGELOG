@@ -1,3 +1,8 @@
+20210924 - 41.0
+
+Various minor changes to Bottom Panel.  The main visible result of
+this is that window list items now fill the height of the panel.
+
 20210525 - 40.2
 
 Bottom Panel:  Move width specification for window list items from the
