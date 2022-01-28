@@ -606,7 +606,8 @@ class WindowList extends TooltipContainer {
         }
     }
 
-    _windowAdded(metaWorkspace, metaWindow) {
+    _windowCreated(metaDisplay, metaWindow) {
+        let metaWorkspace = metaWindow.get_workspace();
         let index = metaWorkspace.index();
         let seq = metaWindow.get_stable_sequence();
         this._wsdata[index].windowSeq.push(seq);
@@ -656,12 +657,12 @@ class WindowList extends TooltipContainer {
             let wd = this._wsdata[i];
             let ws = global.workspace_manager.get_workspace_by_index(i);
 
-            if (wd.windowAddedId)
-                ws.disconnect(wd.windowAddedId);
+            if (wd.windowCreatedId)
+                global.display.disconnect(wd.windowCreatedId);
             if (wd.windowRemovedId)
                 ws.disconnect(wd.windowRemovedId);
 
-            wd.windowAddedId = 0;
+            wd.windowCreatedId = 0;
             wd.windowRemovedId = 0;
         }
     }
@@ -690,8 +691,9 @@ class WindowList extends TooltipContainer {
             }
 
             let ws = global.workspace_manager.get_workspace_by_index(i);
-            this._wsdata[i].windowAddedId = ws.connect('window-added',
-                                    this._windowAdded.bind(this));
+            this._wsdata[i].windowCreatedId =
+                        global.display.connect('window-created',
+                                    this._windowCreated.bind(this));
             this._wsdata[i].windowRemovedId = ws.connect('window-removed',
                                     this._windowRemoved.bind(this));
         }
@@ -1487,9 +1489,14 @@ let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 const BottomPanelExtension =
 class BottomPanelExtension {
     constructor() {
-        ExtensionUtils.initTranslations();
-
         this._bottomPanel = null;
+    }
+
+    enable() {
+        if ( Main.sessionMode.currentMode == 'classic' ) {
+            log('Frippery Bottom Panel does not work in Classic mode');
+            return;
+        }
 
         this._origShowWorkspaceSwitcher =
             WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
@@ -1572,13 +1579,6 @@ class BottomPanelExtension {
 
             this._workspaceSwitcherPopup = null;
         };
-    }
-
-    enable() {
-        if ( Main.sessionMode.currentMode == 'classic' ) {
-            log('Frippery Bottom Panel does not work in Classic mode');
-            return;
-        }
 
         WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
             this._myShowWorkspaceSwitcher;
@@ -1610,5 +1610,6 @@ class BottomPanelExtension {
 };
 
 function init() {
+    ExtensionUtils.initTranslations();
     return new BottomPanelExtension();
 }

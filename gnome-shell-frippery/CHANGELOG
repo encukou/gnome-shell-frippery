@@ -1,3 +1,15 @@
+20220117 - 41.2
+
+Bottom Panel:  GNOME Shell 41.3 changed how new windows are tracked.
+To get a valid return from WindowTracker.get_window_app() in the
+window added callback it's necessary to switch from using the
+MetaWorkspace::window-added signal to MetaDisplay::window-created.
+Otherwise new windows don't show up in the window list.
+
+20210924 - 41.1
+
+Some code churn to placate a reviewer.
+
 20210924 - 41.0
 
 Various minor changes to Bottom Panel.  The main visible result of

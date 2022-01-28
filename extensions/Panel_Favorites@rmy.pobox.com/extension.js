@@ -484,9 +484,7 @@ const OTHER_APPS = 1;
 const PanelFavoritesExtension =
 class PanelFavoritesExtension {
     constructor() {
-        ExtensionUtils.initTranslations();
         this._panelAppsButton = [ null, null ];
-        this._settings = ExtensionUtils.getSettings();
     }
 
     _getPosition(key) {
@@ -583,6 +581,7 @@ class PanelFavoritesExtension {
     }
 
     enable() {
+        this._settings = ExtensionUtils.getSettings();
         this._configureButtons();
         this._changedId = this._settings.connect('changed',
                 this._configureButtons.bind(this));
@@ -611,5 +610,6 @@ class PanelFavoritesExtension {
 };
 
 function init() {
+    ExtensionUtils.initTranslations();
     return new PanelFavoritesExtension();
 }
