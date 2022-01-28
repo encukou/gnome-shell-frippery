@@ -1,20 +1,24 @@
-// Copyright (C) 2011-2021 R M Yorston
+// Copyright (C) 2011-2023 R M Yorston
 // Licence: GPLv2+
 
-const { Atk, Clutter, Gio, GLib, GMenu, GObject, Shell, St } = imports.gi;
+import Atk from 'gi://Atk';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GMenu from 'gi://GMenu';
+import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const Main = imports.ui.main;
-const ModalDialog = imports.ui.modalDialog;
-const Panel = imports.ui.panel;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
+import * as Panel from 'resource:///org/gnome/shell/ui/panel.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
+import {Extension, gettext as _f, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const appSys = Shell.AppSystem.get_default();
-
-const _ = imports.gettext.domain('gnome-shell').gettext;
-const _f = imports.gettext.domain('frippery-applications-menu').gettext;
+var appSys = null;
 
 const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
@@ -225,7 +229,7 @@ class ApplicationsMenuDialog extends ModalDialog.ModalDialog {
 
 const ApplicationsMenuButton = GObject.registerClass(
 class ApplicationsMenuButton extends PanelMenu.Button {
-    _init() {
+    _init(settings) {
         super._init(1.0, _('Applications'), false);
 
         this._box = new St.BoxLayout();
@@ -251,7 +255,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
         this._box.add(this._label);
         this.add_actor(this._box);
 
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = settings;
         this._settingsChangedId = this._settings.connect('changed',
                                     this._settingsChanged.bind(this));
         this._settingsChanged();
@@ -285,7 +289,7 @@ class ApplicationsMenuButton extends PanelMenu.Button {
                                    () => this.menu.toggle());
     }
 
-	vfunc_event(event) {
+    vfunc_event(event) {
         if ( event.type() == Clutter.EventType.BUTTON_RELEASE &&
                 event.get_button() == 3 ) {
             return Clutter.EVENT_PROPAGATE;
@@ -429,18 +433,15 @@ class ApplicationsMenuButton extends PanelMenu.Button {
     }
 });
 
-const ApplicationsMenuExtension =
-class ApplicationsMenuExtension {
-    constructor() {
-        ExtensionUtils.initTranslations();
-    }
-
+export default class ApplicationsMenuExtension extends Extension {
     enable() {
         let mode = Main.sessionMode.currentMode;
         if ( mode == 'classic' ) {
-            log('Frippery Applications Menu does not work in Classic mode');
+            console.error('Frippery Applications Menu does not work in Classic mode');
             return;
         }
+
+        appSys = Shell.AppSystem.get_default();
 
         this.activitiesButton = Main.panel.statusArea['activities'];
         if ( this.activitiesButton ) {
@@ -452,7 +453,7 @@ class ApplicationsMenuExtension {
             this.applicationsButton._settingsChanged();
         }
         else {
-            this.applicationsButton = new ApplicationsMenuButton();
+            this.applicationsButton = new ApplicationsMenuButton(this.getSettings());
             Main.panel.addToStatusArea('frippery-apps', this.applicationsButton,
                     0, 'left');
         }
@@ -460,9 +461,8 @@ class ApplicationsMenuExtension {
 
     disable() {
         let mode = Main.sessionMode.currentMode;
-        if ( mode == 'classic' ) {
-            return;
-        }
+
+        appSys = null;
 
         if ( this.applicationsButton ) {
             this.applicationsButton.container.hide();
@@ -474,7 +474,3 @@ class ApplicationsMenuExtension {
         }
     }
 };
-
-function init() {
-    return new ApplicationsMenuExtension();
-}

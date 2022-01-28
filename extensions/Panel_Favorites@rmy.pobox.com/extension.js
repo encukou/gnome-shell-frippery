@@ -1,17 +1,20 @@
-// Copyright (C) 2011-2022 R M Yorston
+// Copyright (C) 2011-2023 R M Yorston
 // Licence: GPLv2+
 
-const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const AppFavorites = imports.ui.appFavorites;
-const Main = imports.ui.main;
-const Panel = imports.ui.panel;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Panel from 'resource:///org/gnome/shell/ui/panel.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-
-const _f = imports.gettext.domain('frippery-panel-favorites').gettext;
+import {Extension, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const PANEL_LAUNCHER_LABEL_SHOW_TIME = 0.15;
 const PANEL_LAUNCHER_LABEL_HIDE_TIME = 0.1;
@@ -476,9 +479,9 @@ class AppIconMenu extends PopupMenu.PopupMenu {
 const FAVORITES = 0;
 const OTHER_APPS = 1;
 
-const PanelFavoritesExtension =
-class PanelFavoritesExtension {
-    constructor() {
+export default class PanelFavoritesExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
         this._panelAppsButton = [ null, null ];
     }
 
@@ -517,9 +520,9 @@ class PanelFavoritesExtension {
             {
                 description: _f('Other Applications'),
                 name: 'panelOtherApps',
-                settings: ExtensionUtils.getSettings(),
+                settings: this.getSettings(),
                 key: SETTINGS_OTHER_APPS,
-                change_object: ExtensionUtils.getSettings(),
+                change_object: this.getSettings(),
                 change_event: 'changed::' + SETTINGS_OTHER_APPS
             }
         ];
@@ -576,7 +579,7 @@ class PanelFavoritesExtension {
     }
 
     enable() {
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = this.getSettings();
         this._configureButtons();
         this._changedId = this._settings.connect('changed',
                 this._configureButtons.bind(this));
@@ -601,10 +604,8 @@ class PanelFavoritesExtension {
                 this._panelAppsButton[i] = null;
             }
         }
+
+        this._panelAppsButton = [null, null];
+        this._settings = null;
     }
 };
-
-function init() {
-    ExtensionUtils.initTranslations();
-    return new PanelFavoritesExtension();
-}

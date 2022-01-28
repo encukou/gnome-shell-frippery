@@ -1,20 +1,28 @@
 // Copyright (C) 2011-2023 R M Yorston
 // Licence: GPLv2+
 
-const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
-const Signals = imports.signals;
+import Atk from 'gi://Atk';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
+import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const CheckBox = imports.ui.checkBox;
-const Layout = imports.ui.layout;
-const Main = imports.ui.main;
-const ModalDialog = imports.ui.modalDialog;
-const PopupMenu = imports.ui.popupMenu;
-const WindowManager = imports.ui.windowManager;
-const WorkspaceSwitcherPopup = imports.ui.workspaceSwitcherPopup;
+import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
+import * as CheckBox from 'resource:///org/gnome/shell/ui/checkBox.js';
+import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as WindowManager from 'resource:///org/gnome/shell/ui/windowManager.js';
+import * as WorkspaceSwitcherPopup from 'resource:///org/gnome/shell/ui/workspaceSwitcherPopup.js';
 
-const _f = imports.gettext.domain('frippery-bottom-panel').gettext;
+import {Extension, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const BOTTOM_PANEL_TOOLTIP_SHOW_TIME = 0.15;
 const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
@@ -31,6 +39,7 @@ const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
 let show_panel = [];
 let enable_panel = true;
 let save_wsdata = [];
+let extension_settings = null;
 
 /*
  * This is a base class for containers that manage the tooltips of their
@@ -474,7 +483,9 @@ class WindowListItem extends TooltipChild {
         this.metaWindow.disconnect(this._notifyMinimizedId);
         global.display.disconnect(this._notifyFocusId);
         this.tooltip.destroy();
+        this.tooltip = null;
         this.rightClickMenu.destroy();
+        this.rightClickMenu = null;
     }
 
     _onButtonPress(actor, event) {
@@ -523,7 +534,7 @@ class WindowListItem extends TooltipChild {
     }
 
     _updateIconGeometry() {
-        let rect = new Meta.Rectangle();
+        let rect = new Mtk.Rectangle();
 
         [rect.x, rect.y] = this.actor.get_transformed_position();
         [rect.width, rect.height] = this.actor.get_transformed_size();
@@ -720,7 +731,7 @@ class WindowList extends TooltipContainer {
 function get_nrows() {
     let mutter_settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
     if (!mutter_settings.get_boolean('dynamic-workspaces')) {
-        let settings = ExtensionUtils.getSettings();
+        let settings = extension_settings;
 
         let rows = settings.get_int(SETTINGS_NUM_ROWS);
         if (!isNaN(rows) && rows > 0 && rows < 6) {
@@ -824,7 +835,7 @@ class EnablePanelSwitch extends ToggleSwitch {
     constructor(dialog) {
         super(true);
         this._dialog = dialog;
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = extension_settings;
         this.updateState();
     }
 
@@ -961,7 +972,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
     }
 
     _updateValues() {
-        let settings = ExtensionUtils.getSettings();
+        let settings = extension_settings;
         let changed = false;
         for ( let i=0; i<this.cb.length; ++i ) {
             if ( show_panel[i] != this.cb[i].checked ) {
@@ -1244,7 +1255,7 @@ class WorkspaceSwitcher extends TooltipContainer {
 const BottomPanel =
 class BottomPanel {
     constructor() {
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = extension_settings;
 
         enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
 
@@ -1386,17 +1397,18 @@ class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopu
 
 let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 
-const BottomPanelExtension =
-class BottomPanelExtension {
-    constructor() {
+export default class BottomPanelExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
         this._bottomPanel = null;
     }
 
     enable() {
         if ( Main.sessionMode.currentMode == 'classic' ) {
-            log('Frippery Bottom Panel does not work in Classic mode');
+            console.error('Frippery Bottom Panel does not work in Classic mode');
             return;
         }
+        extension_settings = this.getSettings();
 
         this._origShowWorkspaceSwitcher =
             WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
@@ -1542,10 +1554,6 @@ class BottomPanelExtension {
     }
 
     disable() {
-        if ( Main.sessionMode.currentMode == 'classic' ) {
-            return;
-        }
-
         global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
                 false, 1, -1);
 
@@ -1558,10 +1566,6 @@ class BottomPanelExtension {
             this._bottomPanel.actor.destroy();
             this._bottomPanel = null;
         }
+        extension_settings = null;
     }
 };
-
-function init() {
-    ExtensionUtils.initTranslations();
-    return new BottomPanelExtension();
-}

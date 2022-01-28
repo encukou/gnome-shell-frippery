@@ -1,19 +1,26 @@
-// Copyright (C) 2015-2021 R M Yorston
+// Copyright (C) 2015-2023 R M Yorston
 // Licence: GPLv2+
 
-const { Gio, GObject, Gtk } = imports.gi;
+import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
+import GObject from 'gi://GObject';
+import Gtk from 'gi://Gtk';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-
-const _f = imports.gettext.domain('frippery-applications-menu').gettext;
+import {ExtensionPreferences, gettext as _f} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 const SETTINGS_SHOW_ICON = "show-icon";
 const SETTINGS_SHOW_TEXT = "show-text";
 
-const ApplicationsMenuSettingsWidget = GObject.registerClass(
-class ApplicationsMenuSettingsWidget extends Gtk.Grid {
-    _init(params) {
-        super._init({
+class ApplicationsMenuSettingsWidget extends Adw.PreferencesGroup {
+    static {
+        GObject.registerClass(this);
+    }
+
+    constructor(settings) {
+        super();
+
+        this.settings = settings;
+        let grid0 = new Gtk.Grid({
             halign: Gtk.Align.CENTER,
             margin_top: 24,
             margin_bottom: 24,
@@ -22,24 +29,22 @@ class ApplicationsMenuSettingsWidget extends Gtk.Grid {
             column_spacing: 12,
             row_spacing: 6,
         });
-        this.settings = ExtensionUtils.getSettings();
+        this.add(grid0);
 
         let check = new Gtk.CheckButton({ label: _f("Icon"), margin_top: 6 });
         this.settings.bind(SETTINGS_SHOW_ICON, check, 'active',
                 Gio.SettingsBindFlags.DEFAULT);
-        this.attach(check, 0, 0, 1, 1);
+        grid0.attach(check, 0, 0, 1, 1);
 
         check = new Gtk.CheckButton({ label: _f("Text"), margin_top: 6 });
         this.settings.bind(SETTINGS_SHOW_TEXT, check, 'active',
                 Gio.SettingsBindFlags.DEFAULT);
-        this.attach(check, 0, 1, 1, 1);
+        grid0.attach(check, 0, 1, 1, 1);
     }
-});
-
-function init() {
-    ExtensionUtils.initTranslations();
 }
 
-function buildPrefsWidget() {
-    return new ApplicationsMenuSettingsWidget();
+export default class ApplicationsMenuPreferences extends ExtensionPreferences {
+    getPreferencesWidget() {
+        return new ApplicationsMenuSettingsWidget(this.getSettings());
+    }
 }

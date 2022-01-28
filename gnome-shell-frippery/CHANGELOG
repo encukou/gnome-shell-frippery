@@ -1,3 +1,15 @@
+20231116 - 45.1
+
+Bottom Panel: use Mtk.Rectangle() instead of deprecated Meta.Rectangle().
+Bottom Panel: set tooltip and rightClickMenu to null when WindowListItem
+is destroyed.
+
+20231011 - 45.0
+
+Update for GNOME 45.
+- All extensions have been modified to use a different import mechanism.
+  Creation of preferences widgets has also been modified.
+
 20230611 - 44.1
 
 Bottom Panel:  use a new method to find the target when a window
