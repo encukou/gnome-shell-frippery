@@ -1,3 +1,13 @@
+20230611 - 44.1
+
+Bottom Panel:  use a new method to find the target when a window
+list item is dragged.  The old one stopped working.
+
+20230329 - 44.0
+
+Update for GNOME 44.
+- Alter how the monitor manager is obtained in Bottom Panel.
+
 20220919 - 43.0
 
 Update for GNOME 43.
