@@ -1,10 +1,11 @@
-// Copyright (C) 2011-2021 R M Yorston
+// Copyright (C) 2011-2022 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
 const Signals = imports.signals;
 
 const CheckBox = imports.ui.checkBox;
+const Layout = imports.ui.layout;
 const Main = imports.ui.main;
 const ModalDialog = imports.ui.modalDialog;
 const PopupMenu = imports.ui.popupMenu;
@@ -80,6 +81,16 @@ class TooltipContainer {
                     });
             }
         }
+    }
+
+    _onDestroy() {
+        if (this._showTooltipTimeoutId)
+            GLib.source_remove(this._showTooltipTimeoutId);
+        this._showTooltipTimeoutId = 0;
+
+        if (this._resetHoverTimeoutId)
+            GLib.source_remove(this._resetHoverTimeoutId);
+        this._resetHoverTimeoutId = 0;
     }
 };
 
@@ -286,7 +297,7 @@ class WindowListItemMenu extends PopupMenu.PopupMenu {
             this.itemMinimizeWindow.label.set_text(_('Minimize'));
         }
         else {
-            this.metaWindow.minimize(global.get_current_time());
+            this.metaWindow.minimize();
             this.itemMinimizeWindow.label.set_text(_f('Unminimize'));
         }
     }
@@ -351,6 +362,7 @@ class WindowListItem extends TooltipChild {
         super();
 
         this.metaWindow = metaWindow;
+        this.windowUnmanagedId = 0;
         this.myWindowList = myWindowList;
 
         this.actor = new St.BoxLayout({
@@ -400,7 +412,7 @@ class WindowListItem extends TooltipChild {
     }
 
     _getIndex() {
-        return this.myWindowList._windows.indexOf(this);
+        return this.myWindowList._items.indexOf(this);
     }
 
     _onTitleChanged() {
@@ -511,7 +523,7 @@ class WindowList extends TooltipContainer {
                             x_expand: true,
                             style_class: 'window-list-box' });
         this.actor._delegate = this;
-        this._windows = [];
+        this._items = [];
         this.dragIndex = -1;
 
         this._onSwitchWorkspaceId = global.window_manager.connect(
@@ -524,6 +536,10 @@ class WindowList extends TooltipContainer {
         this._onNWorkspacesId = global.workspace_manager.connect(
                                 'notify::n-workspaces',
                                 this._changeWorkspaces.bind(this));
+
+        this._windowCreatedId = global.display.connect(
+                                'window-created',
+                                this._windowCreated.bind(this));
 
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
         this._refreshItems();
@@ -546,10 +562,12 @@ class WindowList extends TooltipContainer {
             let app = tracker.get_window_app(metaWindow);
             if ( app ) {
                 let item = new WindowListItem(this, app, metaWindow);
-                this._windows.push(item);
+                this._items.push(item);
                 this.actor.add(item.actor);
                 item.onHoverCallbackId = item.actor.connect('notify::hover',
                         () => this._onHover(item));
+                item.windowUnmanagedId = metaWindow.connect('unmanaged',
+                        () => this._windowUnmanaged(metaWindow));
                 this._menuManager.addMenu(item.rightClickMenu);
             }
         }
@@ -558,13 +576,12 @@ class WindowList extends TooltipContainer {
     _refreshItems() {
         let i, j;
 
-        for (let item of this._windows) {
-            if (item.onHoverCallbackId) {
-                item.actor.disconnect(item.onHoverCallbackId);
-            }
+        for (let item of this._items) {
+            item.actor.disconnect(item.onHoverCallbackId);
+            item.metaWindow.disconnect(item.windowUnmanagedId);
         }
         this.actor.destroy_all_children();
-        this._windows = [];
+        this._items = [];
 
         let metaWorkspace = global.workspace_manager.get_active_workspace();
         let windows = metaWorkspace.list_windows().filter(function(metaWindow) {
@@ -574,8 +591,8 @@ class WindowList extends TooltipContainer {
         let windowSeq = this._wsdata[index].windowSeq;
 
         // add sequence numbers for any windows we don't know about
-        for ( i=0; i < windows.length; ++i ) {
-            let seqi = windows[i].get_stable_sequence();
+        for (let window of windows) {
+            let seqi = window.get_stable_sequence();
             if ( windowSeq.indexOf(seqi) == -1 ) {
                 windowSeq.push(seqi);
             }
@@ -601,32 +618,24 @@ class WindowList extends TooltipContainer {
         });
 
         // Create list items for each window
-        for ( let i = 0; i < windows.length; ++i ) {
-            this._addListItem(windows[i]);
+        for (let window of windows) {
+            this._addListItem(window);
         }
     }
 
     _windowCreated(metaDisplay, metaWindow) {
-        let metaWorkspace = metaWindow.get_workspace();
-        let index = metaWorkspace.index();
-        let seq = metaWindow.get_stable_sequence();
-        this._wsdata[index].windowSeq.push(seq);
+        let win_index = metaWindow.get_workspace().index();
+        let act_index = global.workspace_manager.get_active_workspace_index();
 
-        if ( index != global.workspace_manager.get_active_workspace_index() ) {
-            return;
+        if (win_index == act_index && !metaWindow.skip_taskbar) {
+            let seq = metaWindow.get_stable_sequence();
+            this._wsdata[win_index].windowSeq.push(seq);
+            this._addListItem(metaWindow);
         }
-
-        for ( let i=0; i<this._windows.length; ++i ) {
-            if ( this._windows[i].metaWindow == metaWindow ) {
-                return;
-            }
-        }
-
-        this._addListItem(metaWindow);
     }
 
-    _windowRemoved(metaWorkspace, metaWindow) {
-        let index = metaWorkspace.index();
+    _windowUnmanaged(metaWindow) {
+        let index = global.workspace_manager.get_active_workspace_index();
         let seq = metaWindow.get_stable_sequence();
         let windowSeq = this._wsdata[index].windowSeq;
 
@@ -635,41 +644,20 @@ class WindowList extends TooltipContainer {
             windowSeq.splice(j, 1);
         }
 
-        if ( index != global.workspace_manager.get_active_workspace_index() ) {
-            return;
-        }
-
-        for ( let i=0; i<this._windows.length; ++i ) {
-            if ( this._windows[i].metaWindow == metaWindow ) {
-                this.actor.remove_actor(this._windows[i].actor);
-                this._windows[i].actor.destroy();
-                this._windows.splice(i, 1);
+        for (let i=0; i<this._items.length; ++i) {
+            let item = this._items[i];
+            if (item.metaWindow == metaWindow) {
+                item.actor.disconnect(item.onHoverCallbackId);
+                metaWindow.disconnect(item.windowUnmanagedId);
+                this.actor.remove_actor(item.actor);
+                item.actor.destroy();
+                this._items.splice(i, 1);
                 break;
             }
         }
     }
 
-    _disconnectCallbacks() {
-        for ( let i=0;
-                i<this._wsdata.length &&
-                    i<global.workspace_manager.n_workspaces;
-                ++i ) {
-            let wd = this._wsdata[i];
-            let ws = global.workspace_manager.get_workspace_by_index(i);
-
-            if (wd.windowCreatedId)
-                global.display.disconnect(wd.windowCreatedId);
-            if (wd.windowRemovedId)
-                ws.disconnect(wd.windowRemovedId);
-
-            wd.windowCreatedId = 0;
-            wd.windowRemovedId = 0;
-        }
-    }
-
     _changeWorkspaces() {
-        this._disconnectCallbacks();
-
         // truncate arrays to number of workspaces
         if ( this._wsdata.length > global.workspace_manager.n_workspaces ) {
             this._wsdata.length = global.workspace_manager.n_workspaces;
@@ -689,20 +677,18 @@ class WindowList extends TooltipContainer {
             if ( i >= show_panel.length ) {
                 show_panel[i] = true;
             }
-
-            let ws = global.workspace_manager.get_workspace_by_index(i);
-            this._wsdata[i].windowCreatedId =
-                        global.display.connect('window-created',
-                                    this._windowCreated.bind(this));
-            this._wsdata[i].windowRemovedId = ws.connect('window-removed',
-                                    this._windowRemoved.bind(this));
         }
     }
 
     _onDestroy() {
-        this._disconnectCallbacks();
+        super._onDestroy();
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
         global.workspace_manager.disconnect(this._onNWorkspacesId);
+        global.display.disconnect(this._windowCreatedId);
+        for (let item of this._items) {
+            item.actor.disconnect(item.onHoverCallbackId);
+            item.metaWindow.disconnect(item.windowUnmanagedId);
+        }
         save_wsdata = this._wsdata;
     }
 };
@@ -1044,7 +1030,7 @@ class WorkspaceSwitcher extends TooltipContainer {
         super();
 
         this.actor = new St.BoxLayout({ name: 'workspaceSwitcher',
-                                        style_class: 'workspace-switcher',
+                                        style_class: 'frippery-ws-switcher',
                                         reactive: true });
         this.actor.connect('button-release-event', this._showDialog);
         this.actor.connect('scroll-event', this._onScroll);
@@ -1224,6 +1210,7 @@ class WorkspaceSwitcher extends TooltipContainer {
     }
 
     _onDestroy() {
+        super._onDestroy();
         global.workspace_manager.disconnect(this._onNWorkspacesId);
         this._settings.disconnect(this._onDynamicWorkspacesId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
@@ -1340,147 +1327,36 @@ class BottomPanel {
     }
 };
 
-const FRIPPERY_TIMEOUT = 400;
-
-var FripperySwitcherPopupList = GObject.registerClass(
-class FripperySwitcherPopupList extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopupList {
-    _init() {
-        super._init();
-        this._itemSpacing = 6;
-    }
-
-    vfunc_get_preferred_height(forWidth) {
-        let children = this.get_children();
-        let workArea = Main.layoutManager.getWorkAreaForMonitor(
-                        Main.layoutManager.primaryIndex);
-        let themeNode = this.get_theme_node();
-        let nrows = get_nrows();
-
-        let availHeight = workArea.height;
-        availHeight -= 2 * themeNode.get_vertical_padding();
-
-        let height = 0;
-        for (let i = 0; i < children.length; i++) {
-            let [childMinHeight, childNaturalHeight] =
-                    children[i].get_preferred_height(-1);
-            height = Math.max(height, childNaturalHeight);
-        }
-
-        height = nrows * height;
-
-        let spacing = this._itemSpacing * (nrows - 1);
-        height += spacing;
-        height = Math.min(height, availHeight);
-
-        this._childHeight = (height - spacing) / nrows;
-
-        return themeNode.adjust_preferred_height(height, height);
-    }
-
-    vfunc_get_preferred_width(forHeight) {
-        let children = this.get_children();
-        let workArea = Main.layoutManager.getWorkAreaForMonitor(
-                        Main.layoutManager.primaryIndex);
-        let themeNode = this.get_theme_node();
-
-        let availWidth = workArea.width;
-        availWidth -= 2 * themeNode.get_horizontal_padding();
-
-        let ncols = get_ncols();
-        let height = 0;
-        for (let i = 0; i < children.length; i++) {
-            let [childMinHeight, childNaturalHeight] =
-                    children[i].get_preferred_height(-1);
-            height = Math.max(height, childNaturalHeight);
-        }
-
-        let width = ncols * height * workArea.width/workArea.height;
-
-        let spacing = this._itemSpacing * (ncols - 1);
-        width += spacing;
-        width = Math.min(width, availWidth);
-
-        this._childWidth = (width - spacing) / ncols;
-
-        return [width, width];
-    }
-
-    vfunc_allocate(box) {
-        this.set_allocation(box);
-
-        let themeNode = this.get_theme_node();
-        box = themeNode.get_content_box(box);
-
-        let childBox = new Clutter.ActorBox();
-
-        let ncols = get_ncols();
-        let nrows = get_nrows();
-        let children = this.get_children();
-
-        for ( let ir=0; ir<nrows; ++ir ) {
-            for ( let ic=0; ic<ncols; ++ic ) {
-                let i = ncols*ir + ic;
-                if (!children[i])
-                    continue;
-                let x = box.x1 + ic * (this._childWidth + this._itemSpacing);
-                childBox.x1 = x;
-                childBox.x2 = x + this._childWidth;
-                let y = box.y1 + ir * (this._childHeight + this._itemSpacing);
-                childBox.y1 = y;
-                childBox.y2 = y + this._childHeight;
-                children[i].allocate(childBox);
-            }
-        }
-    }
-});
-
 const FripperySwitcherPopup = GObject.registerClass(
 class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopup {
     _init() {
         super._init();
-        this._container.destroy_all_children();
-        this._list = new FripperySwitcherPopupList();
-        this._container.add_child(this._list);
     }
 
     _redisplay() {
+        let workspaceManager = global.workspace_manager;
+        let ncols = get_ncols();
+        let nrows = get_nrows();
+
         this._list.destroy_all_children();
 
-        for (let i = 0; i < global.workspace_manager.n_workspaces; i++) {
-            let indicator = null;
-
-           if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.LEFT)
-               indicator = new St.Bin({ style_class: 'ws-switcher-active-left' });
-           else if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.RIGHT)
-               indicator = new St.Bin({ style_class: 'ws-switcher-active-right' });
-           else if (i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.UP)
-               indicator = new St.Bin({ style_class: 'ws-switcher-active-up' });
-           else if(i == this._activeWorkspaceIndex && this._direction == Meta.MotionDirection.DOWN)
-               indicator = new St.Bin({ style_class: 'ws-switcher-active-down' });
-           else
-               indicator = new St.Bin({ style_class: 'ws-switcher-box' });
-
-           this._list.add_actor(indicator);
+        let children = [];
+        for (let i = 0; i < ncols; ++i) {
+            children[i] = new St.BoxLayout({ vertical: true });
+            this._list.add_actor(children[i]);
         }
 
-        let workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex);
-        let [containerMinHeight, containerNatHeight] = this._container.get_preferred_height(global.screen_width);
-        let [containerMinWidth, containerNatWidth] = this._container.get_preferred_width(containerNatHeight);
-        this._container.x = workArea.x + Math.floor((workArea.width - containerNatWidth) / 2);
-        this._container.y = workArea.y + Math.floor((workArea.height - containerNatHeight) / 2);
-    }
+        for (let i = 0; i < workspaceManager.n_workspaces; i++) {
+            let col = i % ncols;
+            const indicator = new St.Bin({
+                style_class: 'ws-switcher-indicator',
+            });
 
-    display(direction, activeWorkspaceIndex) {
-        this._direction = direction;
-        this._activeWorkspaceIndex = activeWorkspaceIndex;
+            if (i === this._activeWorkspaceIndex)
+                indicator.add_style_pseudo_class('active');
 
-        this._redisplay();
-        if (this._timeoutId != 0)
-            GLib.source_remove(this._timeoutId);
-        this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-                            FRIPPERY_TIMEOUT, this._onTimeout.bind(this));
-        GLib.Source.set_name_by_id(this._timeoutId, '[gnome-shell] this._onTimeout');
-        this._show();
+            children[col].add_actor(indicator);
+        }
     }
 });
 
@@ -1503,53 +1379,105 @@ class BottomPanelExtension {
 
         this._myShowWorkspaceSwitcher =
             function(display, window, binding) {
-            let workspaceManager = display.get_workspace_manager();
+                let workspaceManager = display.get_workspace_manager();
 
-            if (!Main.sessionMode.hasWorkspaces)
-                return;
+                if (!Main.sessionMode.hasWorkspaces)
+                    return;
 
-            if (workspaceManager.n_workspaces == 1)
-                return;
+                if (workspaceManager.n_workspaces == 1)
+                    return;
 
-            let [action,,,target] = binding.get_name().split('-');
-            let newWs;
-            let direction;
+                let [action,,, target] = binding.get_name().split('-');
+                let newWs;
+                let direction;
+                let vertical = workspaceManager.layout_rows == -1;
+                let rtl = Clutter.get_default_text_direction() == Clutter.TextDirection.RTL;
 
-            if (target == 'last') {
-                direction = Meta.MotionDirection.RIGHT;
-                newWs = workspaceManager.get_workspace_by_index(
-                            workspaceManager.n_workspaces - 1);
-            } else if (isNaN(target)) {
-                direction = Meta.MotionDirection[target.toUpperCase()];
-                newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
-            } else if (target > 0) {
-                target--;
-                newWs = workspaceManager.get_workspace_by_index(target);
-
-                // FIXME add proper support for switching to numbered workspace
-                if (workspaceManager.get_active_workspace().index() > target)
-                    direction = Meta.MotionDirection.LEFT;
-                else
-                    direction = Meta.MotionDirection.RIGHT;
-            }
-
-            if (!newWs)
-                return;
-
-            if (action == 'switch')
-                this.actionMoveWorkspace(newWs);
-            else
-                this.actionMoveWindow(window, newWs);
-
-            if (!Main.overview.visible) {
-                if (this._workspaceSwitcherPopup == null) {
-                    this._workspaceSwitcherPopup = new FripperySwitcherPopup();
-                    this._workspaceSwitcherPopup.connect('destroy',
-                        () => this._workspaceSwitcherPopup = null);
+                if (action == 'move') {
+                    // "Moving" a window to another workspace doesn't make sense when
+                    // it cannot be unstuck, and is potentially confusing if a new
+                    // workspaces is added at the start/end
+                    if (window.is_always_on_all_workspaces() ||
+                        (Meta.prefs_get_workspaces_only_on_primary() &&
+                         window.get_monitor() != Main.layoutManager.primaryIndex))
+                        return;
                 }
-                this._workspaceSwitcherPopup.display(direction, newWs.index());
-            }
-        };
+
+                if (target == 'last') {
+                    if (vertical)
+                        direction = Meta.MotionDirection.DOWN;
+                    else if (rtl)
+                        direction = Meta.MotionDirection.LEFT;
+                    else
+                        direction = Meta.MotionDirection.RIGHT;
+                    newWs = workspaceManager.get_workspace_by_index(workspaceManager.n_workspaces - 1);
+                } else if (isNaN(target)) {
+                    // Prepend a new workspace dynamically
+                    let prependTarget;
+                    if (vertical)
+                        prependTarget = 'up';
+                    else if (rtl)
+                        prependTarget = 'right';
+                    else
+                        prependTarget = 'left';
+                    if (workspaceManager.get_active_workspace_index() === 0 &&
+                        action === 'move' && target === prependTarget &&
+                        this._isWorkspacePrepended === false) {
+                        this.insertWorkspace(0);
+                        this._isWorkspacePrepended = true;
+                    }
+
+                    direction = Meta.MotionDirection[target.toUpperCase()];
+                    newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
+                } else if ((target > 0) && (target <= workspaceManager.n_workspaces)) {
+                    target--;
+                    newWs = workspaceManager.get_workspace_by_index(target);
+
+                    if (workspaceManager.get_active_workspace().index() > target) {
+                        if (vertical)
+                            direction = Meta.MotionDirection.UP;
+                        else if (rtl)
+                            direction = Meta.MotionDirection.RIGHT;
+                        else
+                            direction = Meta.MotionDirection.LEFT;
+                    } else {
+                        if (vertical) // eslint-disable-line no-lonely-if
+                            direction = Meta.MotionDirection.DOWN;
+                        else if (rtl)
+                            direction = Meta.MotionDirection.LEFT;
+                        else
+                            direction = Meta.MotionDirection.RIGHT;
+                    }
+                }
+
+                if (workspaceManager.layout_rows == -1 &&
+                    direction != Meta.MotionDirection.UP &&
+                    direction != Meta.MotionDirection.DOWN)
+                    return;
+
+                if (workspaceManager.layout_columns == -1 &&
+                    direction != Meta.MotionDirection.LEFT &&
+                    direction != Meta.MotionDirection.RIGHT)
+                    return;
+
+                if (action == 'switch')
+                    this.actionMoveWorkspace(newWs);
+                else
+                    this.actionMoveWindow(window, newWs);
+
+                if (!Main.overview.visible) {
+                    if (this._workspaceSwitcherPopup == null) {
+                        this._workspaceTracker.blockUpdates();
+                        this._workspaceSwitcherPopup = new FripperySwitcherPopup();
+                        this._workspaceSwitcherPopup.connect('destroy', () => {
+                            this._workspaceTracker.unblockUpdates();
+                            this._workspaceSwitcherPopup = null;
+                            this._isWorkspacePrepended = false;
+                        });
+                    }
+                    this._workspaceSwitcherPopup.display(newWs.index());
+                }
+            };
 
         WindowManager.WindowManager.prototype._reset = function() {
             Meta.keybindings_set_custom_handler('switch-to-workspace-left',

@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2020 R M Yorston
+// Copyright (C) 2011-2022 R M Yorston
 // Licence: GPLv2+
 
 const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
@@ -280,16 +280,16 @@ class PanelAppsButton extends PanelMenu.Button {
                         this._showLabelTimeoutId = 0;
                         return GLib.SOURCE_REMOVE;
                     });
+                GLib.Source.set_name_by_id(this._showLabelTimeoutId, '[gnome-shell] item.showLabel');
                 if (this._resetHoverTimeoutId > 0) {
                     GLib.source_remove(this._resetHoverTimeoutId);
                     this._resetHoverTimeoutId = 0;
                 }
             }
         } else {
-            if (this._showLabelTimeoutId > 0) {
+            if (this._showLabelTimeoutId > 0)
                 GLib.source_remove(this._showLabelTimeoutId);
-                this._showLabelTimeoutId = 0;
-            }
+            this._showLabelTimeoutId = 0;
             launcher.hideLabel();
             if (this._labelShowing) {
                 this._resetHoverTimeoutId = GLib.timeout_add(
@@ -299,20 +299,27 @@ class PanelAppsButton extends PanelMenu.Button {
                         this._resetHoverTimeoutId = 0;
                         return GLib.SOURCE_REMOVE;
                     });
+                GLib.Source.set_name_by_id(this._resetHoverTimeoutId, '[gnome-shell] this._labelShowing');
             }
         }
     }
 
     _onDestroy() {
-        if ( this._installChangedId != 0 ) {
+        if (this._installChangedId > 0)
             Shell.AppSystem.get_default().disconnect(this._installChangedId);
-            this._installChangedId = 0;
-        }
+        this._installChangedId = 0;
 
-        if ( this._changedId != 0 ) {
+        if ( this._changedId > 0 )
             this._details.change_object.disconnect(this._changedId);
-            this._changedId = 0;
-        }
+        this._changedId = 0;
+
+        if (this._showLabelTimeoutId > 0)
+            GLib.source_remove(this._showLabelTimeoutId);
+        this._showLabelTimeoutId = 0;
+
+        if (this._resetHoverTimeoutId > 0)
+            GLib.source_remove(this._resetHoverTimeoutId);
+        this._resetHoverTimeoutId = 0;
     }
 });
 
@@ -399,13 +406,13 @@ class AppIconMenu extends PopupMenu.PopupMenu {
                 let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
 
                 if (isFavorite) {
-                    let item = this._appendMenuItem(_('Remove from Favorites'));
+                    let item = this._appendMenuItem(_('Unpin'));
                     item.connect('activate', () => {
                         let favs = AppFavorites.getAppFavorites();
                         favs.removeFavorite(this._source._app.get_id());
                     });
                 } else {
-                    let item = this._appendMenuItem(_('Add to Favorites'));
+                    let item = this._appendMenuItem(_('Pin to Dash'));
                     item.connect('activate', () => {
                         let favs = AppFavorites.getAppFavorites();
                         favs.addFavorite(this._source.app.get_id());
@@ -544,7 +551,7 @@ class PanelFavoritesExtension {
                     this._panelAppsButton[i].emit('destroy');
                     this._panelAppsButton[i].destroy();
                     this._panelAppsButton[i] = null;
-	            }
+                }
             }
 
             if (this._panelAppsButton[i]) {
