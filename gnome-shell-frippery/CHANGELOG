@@ -1,3 +1,23 @@
+20220330 - 42.0
+
+Update for GNOME 42.
+- Applications Menu and Move Clock only need '42' added to metadata;
+- Some menu text in Panel Favorites has been changed to match upstream;
+- The workspace switcher popup in Bottom Panel has been updated to have
+  the new upstream appearance.  The directional arrows are no longer
+  required.
+
+20220326 - 41.3
+
+Panel Favorites:  tidy up timeouts.
+
+Bottom Panel:  the modifications to support the new window tracking
+mechanism broke the ability to change the order of items in the
+window list.  Further revise window tracking to fix this.
+
+Bottom Panel:  remove timeouts when things are destroyed
+(FripperySwitcherPopup and TooltipContainer).
+
 20220117 - 41.2
 
 Bottom Panel:  GNOME Shell 41.3 changed how new windows are tracked.
