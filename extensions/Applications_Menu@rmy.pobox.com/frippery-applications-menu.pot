@@ -18,8 +18,5 @@ msgstr ""
 msgid "Text"
 msgstr ""
 
-msgid "Hot corner"
-msgstr ""
-
 msgid "Close"
 msgstr ""

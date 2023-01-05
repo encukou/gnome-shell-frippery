@@ -9,7 +9,7 @@
     spacing: 6px;
 }
 
-.workspace-switcher {
+.frippery-ws-switcher {
     spacing: 6px;
 }
 
@@ -108,43 +108,4 @@
     width: 6em;
     selection-background-color: white;
     selected-color: black;
-}
-
-.ws-switcher-active-left {
-    height: 100px;
-    border: 0px;
-    background: rgba(255,255,255,0.5);
-    background-image: url("ws-switch-arrow-left.png");
-    border-radius: 8px;
-}
-
-.ws-switcher-active-right {
-    height: 100px;
-    border: 0px;
-    background: rgba(255,255,255,0.5);
-    background-image: url("ws-switch-arrow-right.png");
-    border-radius: 8px;
-}
-
-.ws-switcher-active-up {
-    height: 100px;
-    border: 0px;
-    background: rgba(255,255,255,0.5);
-    background-image: url("ws-switch-arrow-up.png");
-    border-radius: 8px;
-}
-
-.ws-switcher-active-down {
-    height: 100px;
-    border: 0px;
-    background: rgba(255,255,255,0.5);
-    background-image: url("ws-switch-arrow-down.png");
-    border-radius: 8px;
-}
-
-.ws-switcher-box {
-    height: 96px;
-    border: 2px solid rgba(85,85,85,0.5);
-    background: transparent;
-    border-radius: 8px;
 }
