@@ -1,3 +1,37 @@
+20220919 - 43.0
+
+Update for GNOME 43.
+- Since GNOME Shell commit 35494f5d0 (popupMenu: Close when source actor
+  gets hidden) the 'mapped' handler for AppIconMenu in Panel Favorites is
+  unnecessary.
+- Since GNOME Shell commit a88e59c1a (Adopt EventEmitter class instead
+  of injecting Signal methods) it's no longer necessary to add signals
+  to AppIconMenu in Panel Favorites.
+
+20220612 - 42.1
+
+Bottom Panel: update window list when a window changes workspace.
+
+20220330 - 42.0
+
+Update for GNOME 42.
+- Applications Menu and Move Clock only need '42' added to metadata;
+- Some menu text in Panel Favorites has been changed to match upstream;
+- The workspace switcher popup in Bottom Panel has been updated to have
+  the new upstream appearance.  The directional arrows are no longer
+  required.
+
+20220326 - 41.3
+
+Panel Favorites:  tidy up timeouts.
+
+Bottom Panel:  the modifications to support the new window tracking
+mechanism broke the ability to change the order of items in the
+window list.  Further revise window tracking to fix this.
+
+Bottom Panel:  remove timeouts when things are destroyed
+(FripperySwitcherPopup and TooltipContainer).
+
 20220117 - 41.2
 
 Bottom Panel:  GNOME Shell 41.3 changed how new windows are tracked.
