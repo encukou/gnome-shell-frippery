@@ -1,5 +1,5 @@
 {
-    "shell-version": ["42", "43"],
+    "shell-version": ["44"],
     "uuid": "Bottom_Panel@rmy.pobox.com",
     "name": "Frippery Bottom Panel",
     "description": "Add a bottom panel to the shell",

@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2022 R M Yorston
+// Copyright (C) 2011-2023 R M Yorston
 // Licence: GPLv2+
 
 const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
@@ -416,6 +416,23 @@ class WindowListItem extends TooltipChild {
         return this.myWindowList._items.indexOf(this);
     }
 
+    _getTargetIndex(event) {
+        let index = -1;
+
+        // find index of list item containing event coordinates
+        let [tx, ty] = event.get_coords();
+        for (let i=0; i<this.myWindowList._items.length; ++i) {
+            let item = this.myWindowList._items[i];
+            let [ix, iy] = item.actor.get_transformed_position();
+            let [iw, ih] = item.actor.get_transformed_size();
+            if (tx > ix && tx < ix + iw && ty > iy && ty < iy + iw) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
     _onTitleChanged() {
         let title = this.metaWindow.title;
 
@@ -480,8 +497,9 @@ class WindowListItem extends TooltipChild {
         let button = event.get_button();
 
         if ( button == 1 ) {
+            let target = this._getTargetIndex(event);
             // do not drag if same window list item
-            if ( this._getIndex() == this.myWindowList.dragIndex ) {
+            if ( target == this.myWindowList.dragIndex ) {
                 if ( this.metaWindow.has_focus() ) {
                     this.metaWindow.minimize();
                 }
@@ -496,7 +514,7 @@ class WindowListItem extends TooltipChild {
 
                 let value = windowSeq[this.myWindowList.dragIndex];
                 windowSeq.splice(this.myWindowList.dragIndex, 1);
-                windowSeq.splice(this._getIndex(), 0, value);
+                windowSeq.splice(target, 0, value);
 
                 this.myWindowList._refreshItems();
             }
@@ -1309,7 +1327,7 @@ class BottomPanel {
         this.actor.connect('style-changed', this.relayout.bind(this));
         this.actor.connect('destroy', this._onDestroy.bind(this));
 
-        let monitorManager = Meta.MonitorManager.get();
+        let monitorManager = global.backend.get_monitor_manager();
         this._monitorsChangedId = monitorManager.connect('monitors-changed',
                             this.relayout.bind(this));
         this._sessionUpdatedId = Main.sessionMode.connect('updated',
@@ -1365,7 +1383,7 @@ class BottomPanel {
     }
 
     _onDestroy() {
-        let monitorManager = Meta.MonitorManager.get();
+        let monitorManager = global.backend.get_monitor_manager();
         monitorManager.disconnect(this._monitorsChangedId);
         global.window_manager.disconnect(this._onSwitchWorkspaceId);
         Main.sessionMode.disconnect(this._sessionUpdatedId);
