@@ -1358,7 +1358,7 @@ class BottomPanel {
     }
 
     relayout() {
-        let bottom = Main.layoutManager.bottomMonitor;
+        let bottom = Main.layoutManager.primaryMonitor;
 
         let h = this.actor.get_theme_node().get_height();
         let active = global.workspace_manager.get_active_workspace_index();
