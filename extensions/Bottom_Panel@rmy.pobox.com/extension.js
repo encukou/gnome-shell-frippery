@@ -1,20 +1,28 @@
-// Copyright (C) 2011-2023 R M Yorston
+// Copyright (C) 2011-2024 R M Yorston
 // Licence: GPLv2+
 
-const { Atk, Clutter, Gio, GLib, GObject, Meta, Pango, Shell, St } = imports.gi;
-const Signals = imports.signals;
+import Atk from 'gi://Atk';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
+import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const CheckBox = imports.ui.checkBox;
-const Layout = imports.ui.layout;
-const Main = imports.ui.main;
-const ModalDialog = imports.ui.modalDialog;
-const PopupMenu = imports.ui.popupMenu;
-const WindowManager = imports.ui.windowManager;
-const WorkspaceSwitcherPopup = imports.ui.workspaceSwitcherPopup;
+import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
+import * as CheckBox from 'resource:///org/gnome/shell/ui/checkBox.js';
+import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as WindowManager from 'resource:///org/gnome/shell/ui/windowManager.js';
+import * as WorkspaceSwitcherPopup from 'resource:///org/gnome/shell/ui/workspaceSwitcherPopup.js';
 
-const _f = imports.gettext.domain('frippery-bottom-panel').gettext;
+import {Extension, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const BOTTOM_PANEL_TOOLTIP_SHOW_TIME = 0.15;
 const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
@@ -31,6 +39,7 @@ const SETTINGS_NUM_WORKSPACES = 'num-workspaces';
 let show_panel = [];
 let enable_panel = true;
 let save_wsdata = [];
+let extension_settings = null;
 
 /*
  * This is a base class for containers that manage the tooltips of their
@@ -162,7 +171,7 @@ class WindowListItemMenu extends PopupMenu.PopupMenu {
     constructor(metaWindow, actor) {
         super(actor, 0.0, St.Side.BOTTOM, 0);
 
-        Main.uiGroup.add_actor(this.actor);
+        Main.uiGroup.add_child(this.actor);
         this.actor.hide();
 
         this.metaWindow = metaWindow;
@@ -383,8 +392,8 @@ class WindowListItem extends TooltipChild {
                             style_class: 'window-list-item-label',
                             y_align: Clutter.ActorAlign.CENTER});
         this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-        this.actor.add(this.icon);
-        this.actor.add(this.label);
+        this.actor.add_child(this.icon);
+        this.actor.add_child(this.label);
 
         this.rightClickMenu = new WindowListItemMenu(metaWindow, this.actor);
 
@@ -474,7 +483,9 @@ class WindowListItem extends TooltipChild {
         this.metaWindow.disconnect(this._notifyMinimizedId);
         global.display.disconnect(this._notifyFocusId);
         this.tooltip.destroy();
+        this.tooltip = null;
         this.rightClickMenu.destroy();
+        this.rightClickMenu = null;
     }
 
     _onButtonPress(actor, event) {
@@ -523,7 +534,7 @@ class WindowListItem extends TooltipChild {
     }
 
     _updateIconGeometry() {
-        let rect = new Meta.Rectangle();
+        let rect = new Mtk.Rectangle();
 
         [rect.x, rect.y] = this.actor.get_transformed_position();
         [rect.width, rect.height] = this.actor.get_transformed_size();
@@ -582,7 +593,7 @@ class WindowList extends TooltipContainer {
             if ( app ) {
                 let item = new WindowListItem(this, app, metaWindow);
                 this._items.push(item);
-                this.actor.add(item.actor);
+                this.actor.add_child(item.actor);
                 item.onHoverCallbackId = item.actor.connect('notify::hover',
                         () => this._onHover(item));
                 item.windowUnmanagedId = metaWindow.connect('unmanaged',
@@ -672,7 +683,7 @@ class WindowList extends TooltipContainer {
                 item.actor.disconnect(item.onHoverCallbackId);
                 metaWindow.disconnect(item.windowUnmanagedId);
                 metaWindow.disconnect(item.windowWSChangedId);
-                this.actor.remove_actor(item.actor);
+                this.actor.remove_child(item.actor);
                 item.actor.destroy();
                 this._items.splice(i, 1);
                 break;
@@ -720,7 +731,7 @@ class WindowList extends TooltipContainer {
 function get_nrows() {
     let mutter_settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
     if (!mutter_settings.get_boolean('dynamic-workspaces')) {
-        let settings = ExtensionUtils.getSettings();
+        let settings = extension_settings;
 
         let rows = settings.get_int(SETTINGS_NUM_ROWS);
         if (!isNaN(rows) && rows > 0 && rows < 6) {
@@ -824,7 +835,7 @@ class EnablePanelSwitch extends ToggleSwitch {
     constructor(dialog) {
         super(true);
         this._dialog = dialog;
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = extension_settings;
         this.updateState();
     }
 
@@ -857,7 +868,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
                             y_align: Clutter.ActorAlign.START,
                             styleClass: 'workspace-dialog-grid'});
         layout.hookup_style(table);
-        this.contentLayout.add(table);
+        this.contentLayout.add_child(table);
 
         let label = new St.Label({
                             style_class: 'workspace-dialog-label',
@@ -961,7 +972,7 @@ class WorkspaceDialog extends ModalDialog.ModalDialog {
     }
 
     _updateValues() {
-        let settings = ExtensionUtils.getSettings();
+        let settings = extension_settings;
         let changed = false;
         for ( let i=0; i<this.cb.length; ++i ) {
             if ( show_panel[i] != this.cb[i].checked ) {
@@ -1089,7 +1100,7 @@ class WorkspaceSwitcher extends TooltipContainer {
                                     this._rowButtonPress.bind(this));
             this.row_indicator.connect('scroll-event',
                                     this._rowScroll.bind(this));
-            this.actor.add(this.row_indicator);
+            this.actor.add_child(this.row_indicator);
         }
 
         let ncols = get_ncols();
@@ -1099,7 +1110,7 @@ class WorkspaceSwitcher extends TooltipContainer {
         let index = row*ncols;
         for ( let i=0; i<ncols; ++i ) {
             let btn = new WorkspaceButton(index++);
-            this.actor.add(btn.actor);
+            this.actor.add_child(btn.actor);
             btn.actor.connect('notify::hover', () => this._onHover(btn));
             this.button[i] = btn;
         }
@@ -1227,7 +1238,7 @@ class WorkspaceSwitcher extends TooltipContainer {
             cr.moveTo(0, y);
             cr.lineTo(width, y);
             let color = row == i ? active_color : inactive_color;
-            Clutter.cairo_set_source_color(cr, color);
+            cr.setSourceColor(color);
             cr.setLineWidth(2.0);
             cr.stroke();
         }
@@ -1244,7 +1255,7 @@ class WorkspaceSwitcher extends TooltipContainer {
 const BottomPanel =
 class BottomPanel {
     constructor() {
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = extension_settings;
 
         enable_panel = this._settings.get_boolean(SETTINGS_ENABLE_PANEL);
 
@@ -1261,10 +1272,10 @@ class BottomPanel {
         this.actor._delegate = this;
 
         let windowList = new WindowList();
-        this.actor.add(windowList.actor);
+        this.actor.add_child(windowList.actor);
 
         this.workspaceSwitcher = new WorkspaceSwitcher();
-        this.actor.add(this.workspaceSwitcher.actor);
+        this.actor.add_child(this.workspaceSwitcher.actor);
 
         Main.layoutManager.addChrome(this.actor, { affectsStruts: true,
                                                    trackFullscreen: true });
@@ -1367,7 +1378,7 @@ class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopu
         let children = [];
         for (let i = 0; i < ncols; ++i) {
             children[i] = new St.BoxLayout({ vertical: true });
-            this._list.add_actor(children[i]);
+            this._list.add_child(children[i]);
         }
 
         for (let i = 0; i < workspaceManager.n_workspaces; i++) {
@@ -1379,24 +1390,25 @@ class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopu
             if (i === this._activeWorkspaceIndex)
                 indicator.add_style_pseudo_class('active');
 
-            children[col].add_actor(indicator);
+            children[col].add_child(indicator);
         }
     }
 });
 
 let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
 
-const BottomPanelExtension =
-class BottomPanelExtension {
-    constructor() {
+export default class BottomPanelExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
         this._bottomPanel = null;
     }
 
     enable() {
         if ( Main.sessionMode.currentMode == 'classic' ) {
-            log('Frippery Bottom Panel does not work in Classic mode');
+            console.error('Frippery Bottom Panel does not work in Classic mode');
             return;
         }
+        extension_settings = this.getSettings();
 
         this._origShowWorkspaceSwitcher =
             WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
@@ -1542,10 +1554,6 @@ class BottomPanelExtension {
     }
 
     disable() {
-        if ( Main.sessionMode.currentMode == 'classic' ) {
-            return;
-        }
-
         global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
                 false, 1, -1);
 
@@ -1558,10 +1566,6 @@ class BottomPanelExtension {
             this._bottomPanel.actor.destroy();
             this._bottomPanel = null;
         }
+        extension_settings = null;
     }
 };
-
-function init() {
-    ExtensionUtils.initTranslations();
-    return new BottomPanelExtension();
-}

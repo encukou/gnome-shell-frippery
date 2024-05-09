@@ -1,17 +1,20 @@
-// Copyright (C) 2011-2022 R M Yorston
+// Copyright (C) 2011-2024 R M Yorston
 // Licence: GPLv2+
 
-const { Clutter, Gio, GLib, GObject, Shell, St } = imports.gi;
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const AppFavorites = imports.ui.appFavorites;
-const Main = imports.ui.main;
-const Panel = imports.ui.panel;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Panel from 'resource:///org/gnome/shell/ui/panel.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-
-const _f = imports.gettext.domain('frippery-panel-favorites').gettext;
+import {Extension, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const PANEL_LAUNCHER_LABEL_SHOW_TIME = 0.15;
 const PANEL_LAUNCHER_LABEL_HIDE_TIME = 0.1;
@@ -172,7 +175,7 @@ class PF_ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
         let icon = app.create_icon_texture(24);
         icon.x_align = Clutter.ActorAlign.CENTER;
         icon.y_align = Clutter.ActorAlign.CENTER;
-        box.add(icon);
+        box.add_child(icon);
 
         let name = app.get_name();
 
@@ -197,7 +200,7 @@ class PF_ApplicationMenuItem extends PopupMenu.PopupBaseMenuItem {
         }
 
         let label = new St.Label({ text: name });
-        box.add(label);
+        box.add_child(label);
 
         this.app = app;
 
@@ -223,7 +226,7 @@ class PanelAppsButton extends PanelMenu.Button {
         this._box = new St.BoxLayout({ name: 'panelFavoritesBox',
                                         x_expand: true, y_expand: true,
                                         style_class: 'panel-favorites' });
-        this.add_actor(this._box);
+        this.add_child(this._box);
 
         this.connect('destroy', this._onDestroy.bind(this));
         this._installChangedId = Shell.AppSystem.get_default().connect('installed-changed', this._redisplay.bind(this));
@@ -254,7 +257,7 @@ class PanelAppsButton extends PanelMenu.Button {
             }
 
             let launcher = new PanelLauncher(app);
-            this._box.add(launcher.actor);
+            this._box.add_child(launcher.actor);
             launcher.actor.connect('notify::hover',
                         () => this._onHover(launcher));
             this._buttons[j] = launcher;
@@ -335,7 +338,7 @@ class AppIconMenu extends PopupMenu.PopupMenu {
 
         this.actor.add_style_class_name('panel-menu');
 
-        Main.uiGroup.add_actor(this.actor);
+        Main.uiGroup.add_child(this.actor);
     }
 
     _redisplay() {
@@ -476,9 +479,9 @@ class AppIconMenu extends PopupMenu.PopupMenu {
 const FAVORITES = 0;
 const OTHER_APPS = 1;
 
-const PanelFavoritesExtension =
-class PanelFavoritesExtension {
-    constructor() {
+export default class PanelFavoritesExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
         this._panelAppsButton = [ null, null ];
     }
 
@@ -517,9 +520,9 @@ class PanelFavoritesExtension {
             {
                 description: _f('Other Applications'),
                 name: 'panelOtherApps',
-                settings: ExtensionUtils.getSettings(),
+                settings: this.getSettings(),
                 key: SETTINGS_OTHER_APPS,
-                change_object: ExtensionUtils.getSettings(),
+                change_object: this.getSettings(),
                 change_event: 'changed::' + SETTINGS_OTHER_APPS
             }
         ];
@@ -566,7 +569,7 @@ class PanelFavoritesExtension {
                     let children = wrong_box.get_children();
                     if (children.indexOf(indicator.container) != -1) {
                         // indicator exists but is in wrong box, move it
-                        wrong_box.remove_actor(indicator.container);
+                        wrong_box.remove_child(indicator.container);
                         right_box.insert_child_at_index(indicator.container,
                                     position);
                     }
@@ -576,7 +579,7 @@ class PanelFavoritesExtension {
     }
 
     enable() {
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = this.getSettings();
         this._configureButtons();
         this._changedId = this._settings.connect('changed',
                 this._configureButtons.bind(this));
@@ -594,17 +597,15 @@ class PanelFavoritesExtension {
                 let indicator = Main.panel.statusArea[role[i]];
                 if (indicator) {
                     let parent = indicator.container.get_parent();
-                    parent.remove_actor(indicator.container);
+                    parent.remove_child(indicator.container);
                 }
                 this._panelAppsButton[i].emit('destroy');
                 this._panelAppsButton[i].destroy();
                 this._panelAppsButton[i] = null;
             }
         }
+
+        this._panelAppsButton = [null, null];
+        this._settings = null;
     }
 };
-
-function init() {
-    ExtensionUtils.initTranslations();
-    return new PanelFavoritesExtension();
-}

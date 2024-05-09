@@ -1,5 +1,5 @@
 {
-    "shell-version": ["43", "44"],
+    "shell-version": ["46"],
     "uuid": "Panel_Favorites@rmy.pobox.com",
     "name": "Frippery Panel Favorites",
     "description": "Add launchers for Favorites to the panel",
