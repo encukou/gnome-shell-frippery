@@ -1,12 +1,13 @@
-// Copyright (C) 2015-2021 R M Yorston
+// Copyright (C) 2015-2023 R M Yorston
 // Licence: GPLv2+
 
 /* stolen from the workspace-indicator extension */
-const { Gio, GObject, Gtk } = imports.gi;
+import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
+import GObject from 'gi://GObject';
+import Gtk from 'gi://Gtk';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-
-const _f = imports.gettext.domain('frippery-panel-favorites').gettext;
+import {ExtensionPreferences, gettext as _f} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 const SETTINGS_FAVORITES_ENABLED = 'favorites-enabled';
 const SETTINGS_FAVORITES_POSITION = 'favorites-position';
@@ -16,15 +17,16 @@ const SETTINGS_OTHER_APPS = 'other-apps';
 
 const AppsModel = GObject.registerClass(
 class AppsModel extends Gtk.ListStore {
-    _init(params) {
-        super._init(params);
+    constructor(settings) {
+        super();
+
         this.set_column_types([GObject.TYPE_STRING]);
 
         this.Columns = {
             LABEL: 0,
         };
 
-        this._settings = ExtensionUtils.getSettings();
+        this._settings = settings;
 
         this._reloadFromSettings();
 
@@ -121,32 +123,37 @@ class AppsModel extends Gtk.ListStore {
     }
 });
 
-const PanelFavoritesSettingsWidget = GObject.registerClass(
-class PanelFavoritesSettingsWidget extends Gtk.Grid {
-    _init(params) {
-        super._init({
-            halign: Gtk.Align.CENTER,
-            margin_top: 24,
-            margin_bottom: 24,
-            margin_start: 24,
-            margin_end: 24,
-            column_spacing: 12,
-            row_spacing: 6,
-        });
+class PanelFavoritesSettingsWidget extends Adw.PreferencesGroup {
+    static {
+        GObject.registerClass(this);
+    }
 
-        this._settings = ExtensionUtils.getSettings();
+    constructor(settings) {
+        super();
+
+        this._settings = settings;
+
+        let grid0 = new Gtk.Grid({
+                            halign: Gtk.Align.CENTER,
+                            margin_top: 24,
+                            margin_bottom: 24,
+                            margin_start: 24,
+                            margin_end: 24,
+                            column_spacing: 12,
+                            row_spacing: 6});
+        this.add(grid0);
 
         let label = new Gtk.Label({
                     label: '<b>' + _f("Favorites") + '</b>',
                     use_markup: true, margin_bottom: 6,
                     hexpand: true, halign: Gtk.Align.START });
-        this.attach(label, 0, 0, 1, 1);
+        grid0.attach(label, 0, 0, 1, 1);
 
         let grid = new Gtk.Grid({ orientation: Gtk.Orientation.VERTICAL,
                                   margin_start: 12,
                                   row_spacing: 6,
                                   column_spacing: 6 });
-        this.attach(grid, 0, 1, 1, 1);
+        grid0.attach(grid, 0, 1, 1, 1);
 
         let state = this._settings.get_boolean(SETTINGS_FAVORITES_ENABLED);
         let check = new Gtk.CheckButton({ label: _f("Enable"),
@@ -182,13 +189,13 @@ class PanelFavoritesSettingsWidget extends Gtk.Grid {
                     label: '<b>' + _f("Other Applications") + '</b>',
                     use_markup: true, margin_bottom: 6, margin_top: 12,
                     hexpand: true, halign: Gtk.Align.START });
-        this.attach(label, 0, 2, 1, 1);
+        grid0.attach(label, 0, 2, 1, 1);
 
         grid = new Gtk.Grid({ orientation: Gtk.Orientation.VERTICAL,
                                   margin_start: 12,
                                   row_spacing: 6,
                                   column_spacing: 6 });
-        this.attach(grid, 0, 3, 1, 1);
+        grid0.attach(grid, 0, 3, 1, 1);
 
         state = this._settings.get_boolean(SETTINGS_OTHER_APPS_ENABLED);
         check = new Gtk.CheckButton({ label: _f("Enable"),
@@ -225,7 +232,7 @@ class PanelFavoritesSettingsWidget extends Gtk.Grid {
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
         grid.attach(scrolled, 0, 2, 1, 1);
 
-        this._store = new AppsModel();
+        this._store = new AppsModel(this._settings);
         this._treeView = new Gtk.TreeView({ model: this._store,
                                             headers_visible: false,
                                             reorderable: true,
@@ -283,12 +290,10 @@ class PanelFavoritesSettingsWidget extends Gtk.Grid {
         if (any)
             this._store.remove(iter);
     }
-});
-
-function init() {
-    ExtensionUtils.initTranslations();
 }
 
-function buildPrefsWidget() {
-    return new PanelFavoritesSettingsWidget();
+export default class PanelFavoritesPreferences extends ExtensionPreferences {
+    getPreferencesWidget() {
+        return new PanelFavoritesSettingsWidget(this.getSettings());
+    }
 }
