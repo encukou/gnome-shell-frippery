@@ -397,10 +397,14 @@ class WindowListItem extends TooltipChild {
 
         this.rightClickMenu = new WindowListItemMenu(metaWindow, this.actor);
 
-        this._notifyTitleId = metaWindow.connect('notify::title',
-                                    this._onTitleChanged.bind(this));
-        this._notifyMinimizedId = metaWindow.connect('notify::minimized',
-                                    this._onMinimizedChanged.bind(this));
+        metaWindow.connectObject(
+            'notify::title', () => this._onTitleChanged(),
+            'notify::minimized', () => this._onMinimizedChanged(),
+            'notify::wm-class',
+            () => this._updateIcon(), GObject.ConnectFlags.AFTER,
+            'notify::gtk-application-id',
+            () => this._updateIcon(), GObject.ConnectFlags.AFTER);
+
         this._notifyFocusId =
             global.display.connect('notify::focus-window',
                                     this._onFocus.bind(this));
@@ -479,8 +483,6 @@ class WindowListItem extends TooltipChild {
     }
 
     _onDestroy() {
-        this.metaWindow.disconnect(this._notifyTitleId);
-        this.metaWindow.disconnect(this._notifyMinimizedId);
         global.display.disconnect(this._notifyFocusId);
         this.tooltip.destroy();
         this.tooltip = null;
@@ -540,6 +542,19 @@ class WindowListItem extends TooltipChild {
         [rect.width, rect.height] = this.actor.get_transformed_size();
 
         this.metaWindow.set_icon_geometry(rect);
+    }
+
+    _updateIcon() {
+        let tracker = Shell.WindowTracker.get_default();
+        let app = tracker.get_window_app(this.metaWindow);
+        this.actor.remove_child(this.icon);
+        this.icon = app ? app.create_icon_texture(16) :
+                          new St.Icon({
+                                    icon_name: 'icon-missing',
+                                    icon_size: 16,
+                                    x_align: Clutter.ActorAlign.CENTER,
+                                    y_align: Clutter.ActorAlign.CENTER});
+        this.actor.insert_child_at_index(this.icon, 0);
     }
 };
 
