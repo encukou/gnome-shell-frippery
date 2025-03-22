@@ -1,3 +1,10 @@
+20240916 - 47.0
+
+Update for GNOME 47.
+
+Bottom Panel: connect callbacks to ensure the application icons are
+properly updated on Wayland.
+
 20240418 - 46.1
 
 Move Clock: convert add_actor() to add_child(), missed in earlier pass.
