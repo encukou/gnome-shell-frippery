@@ -449,7 +449,7 @@ class WindowListItem extends TooltipChild {
     _onTitleChanged() {
         let title = this.metaWindow.title;
 
-        if (!title)
+        if (!title || !this.tooltip)
             return;
 
         this.tooltip.text = title;
@@ -1482,7 +1482,7 @@ export default class BottomPanelExtension extends Extension {
             WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
 
         this._myShowWorkspaceSwitcher =
-            function(display, window, binding) {
+            function(display, window, event, binding) {
                 let workspaceManager = display.get_workspace_manager();
 
                 if (!Main.sessionMode.hasWorkspaces)

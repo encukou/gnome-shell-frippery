@@ -1,3 +1,10 @@
+20250319 - 48.0
+
+Update for GNOME 48.
+
+Bottom Panel: add event argument to _myShowWorkspaceSwitcher().
+Bottom Panel: check for null tooltip in _onTitleChanged()
+
 20240916 - 47.0
 
 Update for GNOME 47.
