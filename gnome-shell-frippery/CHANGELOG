@@ -1,3 +1,19 @@
+20250917 - 49.0
+
+Update for GNOME 49.
+
+- Use InjectionManager to replace the WorkspaceSwitcherPopup in Bottom
+  Panel.  This is much less intrusive than the previous method.
+- Update the code to handle maximisation of applications in Bottom Panel.
+- Handling of clicks in Button widgets has been changed.  This requires
+  some modifications to Bottom Panel and Panel Favorites so that button
+  press and release events can be detected as before.
+
+20250916 - 48.1
+
+Bottom Panel: disconnect handlers from the metawindow of a WindowListItem
+when it's destroyed.
+
 20250319 - 48.0
 
 Update for GNOME 48.

@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2024 R M Yorston
+// Copyright (C) 2011-2025 R M Yorston
 // Licence: GPLv2+
 
 import Clutter from 'gi://Clutter';
@@ -51,12 +51,6 @@ class PanelLauncher {
         this._menu = null;
         this._menuManager = new PopupMenu.PopupMenuManager(this.actor);
 
-        this.actor.connect('clicked', () => {
-            this._app.open_new_window(-1);
-            if ( Main.overview.visible ) {
-                Main.overview.hide();
-            }
-        });
         this.actor.connect('notify::hover',
                 this._onHoverChanged.bind(this));
         this.actor.connect('button-press-event',
@@ -72,6 +66,13 @@ class PanelLauncher {
         let button = event.get_button();
         if (button == 3) {
             this.popupMenu();
+            return Clutter.EVENT_STOP;
+        }
+        if (button == 1) {
+            this._app.open_new_window(-1);
+            if ( Main.overview.visible ) {
+                Main.overview.hide();
+            }
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
