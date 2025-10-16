@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2024 R M Yorston
+// Copyright (C) 2011-2025 R M Yorston
 // Licence: GPLv2+
 
 import Atk from 'gi://Atk';
@@ -22,7 +22,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as WindowManager from 'resource:///org/gnome/shell/ui/windowManager.js';
 import * as WorkspaceSwitcherPopup from 'resource:///org/gnome/shell/ui/workspaceSwitcherPopup.js';
 
-import {Extension, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, InjectionManager, gettext as _f} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const BOTTOM_PANEL_TOOLTIP_SHOW_TIME = 0.15;
 const BOTTOM_PANEL_TOOLTIP_HIDE_TIME = 0.1;
@@ -164,8 +164,6 @@ class TooltipChild {
     }
 };
 
-const MAX_BOTH = Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL;
-
 const WindowListItemMenu =
 class WindowListItemMenu extends PopupMenu.PopupMenu {
     constructor(metaWindow, actor) {
@@ -184,8 +182,7 @@ class WindowListItemMenu extends PopupMenu.PopupMenu {
         this.addMenuItem(item);
         this.itemMinimizeWindow = item;
 
-        text = metaWindow.get_maximized == MAX_BOTH ?
-                _('Unmaximize') : _('Maximize');
+        text = metaWindow.is_maximized() ? _('Unmaximize') : _('Maximize');
         item = new PopupMenu.PopupMenuItem(text);
         item.connect('activate', this._onMaximizeWindowActivate.bind(this));
         this.addMenuItem(item);
@@ -263,7 +260,7 @@ class WindowListItemMenu extends PopupMenu.PopupMenu {
                 _f('Unminimize') : _('Minimize');
         this.itemMinimizeWindow.label.set_text(text);
 
-        text = this.metaWindow.get_maximized() == MAX_BOTH ?
+        text = this.metaWindow.is_maximized() ?
                 _('Unmaximize') : _('Maximize');
         this.itemMaximizeWindow.label.set_text(text);
 
@@ -312,12 +309,12 @@ class WindowListItemMenu extends PopupMenu.PopupMenu {
     }
 
     _onMaximizeWindowActivate(actor, event) {
-        if ( this.metaWindow.get_maximized() == MAX_BOTH ) {
-            this.metaWindow.unmaximize(MAX_BOTH);
+        if ( this.metaWindow.is_maximized() ) {
+            this.metaWindow.unmaximize();
             this.itemMaximizeWindow.label.set_text(_('Maximize'));
         }
         else {
-            this.metaWindow.maximize(MAX_BOTH);
+            this.metaWindow.maximize();
             this.itemMaximizeWindow.label.set_text(_('Unmaximize'));
         }
     }
@@ -403,7 +400,8 @@ class WindowListItem extends TooltipChild {
             'notify::wm-class',
             () => this._updateIcon(), GObject.ConnectFlags.AFTER,
             'notify::gtk-application-id',
-            () => this._updateIcon(), GObject.ConnectFlags.AFTER);
+            () => this._updateIcon(), GObject.ConnectFlags.AFTER,
+            this);
 
         this._notifyFocusId =
             global.display.connect('notify::focus-window',
@@ -484,6 +482,7 @@ class WindowListItem extends TooltipChild {
 
     _onDestroy() {
         global.display.disconnect(this._notifyFocusId);
+        this.metaWindow.disconnectObject(this);
         this.tooltip.destroy();
         this.tooltip = null;
         this.rightClickMenu.destroy();
@@ -1021,7 +1020,7 @@ class WorkspaceButton extends TooltipChild {
         this.actor = new St.Button({ name: 'workspaceButton',
                                  style_class: 'workspace-button',
                                  reactive: true });
-        this.actor.connect('clicked', this._onClicked.bind(this));
+        this.actor.connect('button-press-event', this._onPress.bind(this));
         this.actor.connect('destroy', this._onDestroy.bind(this));
         if ( index < global.workspace_manager.n_workspaces ) {
             let ws = global.workspace_manager.get_workspace_by_index(index);
@@ -1047,14 +1046,15 @@ class WorkspaceButton extends TooltipChild {
         this.setIndex(index);
     }
 
-    _onClicked() {
-        if ( this.index >= 0 &&
+    _onPress(actor, event) {
+        let button = event.get_button();
+        if ( button == 1 && this.index >= 0 &&
                 this.index < global.workspace_manager.n_workspaces ) {
             let metaWorkspace = global.workspace_manager.get_workspace_by_index(this.index);
             metaWorkspace.activate(global.get_current_time());
         }
 
-        return true;
+        return Clutter.EVENT_STOP;
     }
 
     _onDestroy() {
@@ -1430,41 +1430,6 @@ class BottomPanel {
     }
 };
 
-const FripperySwitcherPopup = GObject.registerClass(
-class FripperySwitcherPopup extends WorkspaceSwitcherPopup.WorkspaceSwitcherPopup {
-    _init() {
-        super._init();
-    }
-
-    _redisplay() {
-        let workspaceManager = global.workspace_manager;
-        let ncols = get_ncols();
-        let nrows = get_nrows();
-
-        this._list.destroy_all_children();
-
-        let children = [];
-        for (let i = 0; i < ncols; ++i) {
-            children[i] = new St.BoxLayout({ vertical: true });
-            this._list.add_child(children[i]);
-        }
-
-        for (let i = 0; i < workspaceManager.n_workspaces; i++) {
-            let col = i % ncols;
-            const indicator = new St.Bin({
-                style_class: 'ws-switcher-indicator',
-            });
-
-            if (i === this._activeWorkspaceIndex)
-                indicator.add_style_pseudo_class('active');
-
-            children[col].add_child(indicator);
-        }
-    }
-});
-
-let myShowWorkspaceSwitcher, origShowWorkspaceSwitcher;
-
 export default class BottomPanelExtension extends Extension {
     constructor(metadata) {
         super(metadata);
@@ -1477,145 +1442,37 @@ export default class BottomPanelExtension extends Extension {
             return;
         }
         extension_settings = this.getSettings();
+        this._injectionManager = new InjectionManager();
 
-        this._origShowWorkspaceSwitcher =
-            WindowManager.WindowManager.prototype._showWorkspaceSwitcher;
+        this._injectionManager.overrideMethod(
+            WorkspaceSwitcherPopup.MonitorWorkspaceSwitcherPopup.prototype,
+            'redisplay', () => {
+            return function(activeWorkspaceIndex) {
+                let workspaceManager = global.workspace_manager;
+                let ncols = get_ncols();
+                let nrows = get_nrows();
 
-        this._myShowWorkspaceSwitcher =
-            function(display, window, event, binding) {
-                let workspaceManager = display.get_workspace_manager();
+                this._list.destroy_all_children();
 
-                if (!Main.sessionMode.hasWorkspaces)
-                    return;
-
-                if (workspaceManager.n_workspaces == 1)
-                    return;
-
-                let [action,,, target] = binding.get_name().split('-');
-                let newWs;
-                let direction;
-                let vertical = workspaceManager.layout_rows == -1;
-                let rtl = Clutter.get_default_text_direction() == Clutter.TextDirection.RTL;
-
-                if (action == 'move') {
-                    // "Moving" a window to another workspace doesn't make sense when
-                    // it cannot be unstuck, and is potentially confusing if a new
-                    // workspaces is added at the start/end
-                    if (window.is_always_on_all_workspaces() ||
-                        (Meta.prefs_get_workspaces_only_on_primary() &&
-                         window.get_monitor() != Main.layoutManager.primaryIndex))
-                        return;
+                let children = [];
+                for (let i = 0; i < ncols; ++i) {
+                    children[i] = new St.BoxLayout({ vertical: true });
+                    this._list.add_child(children[i]);
                 }
 
-                if (target == 'last') {
-                    if (vertical)
-                        direction = Meta.MotionDirection.DOWN;
-                    else if (rtl)
-                        direction = Meta.MotionDirection.LEFT;
-                    else
-                        direction = Meta.MotionDirection.RIGHT;
-                    newWs = workspaceManager.get_workspace_by_index(workspaceManager.n_workspaces - 1);
-                } else if (isNaN(target)) {
-                    // Prepend a new workspace dynamically
-                    let prependTarget;
-                    if (vertical)
-                        prependTarget = 'up';
-                    else if (rtl)
-                        prependTarget = 'right';
-                    else
-                        prependTarget = 'left';
-                    if (workspaceManager.get_active_workspace_index() === 0 &&
-                        action === 'move' && target === prependTarget &&
-                        this._isWorkspacePrepended === false) {
-                        this.insertWorkspace(0);
-                        this._isWorkspacePrepended = true;
-                    }
+                for (let i = 0; i < workspaceManager.n_workspaces; i++) {
+                    let col = i % ncols;
+                    const indicator = new St.Bin({
+                        style_class: 'ws-switcher-indicator',
+                    });
 
-                    direction = Meta.MotionDirection[target.toUpperCase()];
-                    newWs = workspaceManager.get_active_workspace().get_neighbor(direction);
-                } else if ((target > 0) && (target <= workspaceManager.n_workspaces)) {
-                    target--;
-                    newWs = workspaceManager.get_workspace_by_index(target);
+                    if (i === activeWorkspaceIndex)
+                        indicator.add_style_pseudo_class('active');
 
-                    if (workspaceManager.get_active_workspace().index() > target) {
-                        if (vertical)
-                            direction = Meta.MotionDirection.UP;
-                        else if (rtl)
-                            direction = Meta.MotionDirection.RIGHT;
-                        else
-                            direction = Meta.MotionDirection.LEFT;
-                    } else {
-                        if (vertical) // eslint-disable-line no-lonely-if
-                            direction = Meta.MotionDirection.DOWN;
-                        else if (rtl)
-                            direction = Meta.MotionDirection.LEFT;
-                        else
-                            direction = Meta.MotionDirection.RIGHT;
-                    }
+                    children[col].add_child(indicator);
                 }
-
-                if (workspaceManager.layout_rows == -1 &&
-                    direction != Meta.MotionDirection.UP &&
-                    direction != Meta.MotionDirection.DOWN)
-                    return;
-
-                if (workspaceManager.layout_columns == -1 &&
-                    direction != Meta.MotionDirection.LEFT &&
-                    direction != Meta.MotionDirection.RIGHT)
-                    return;
-
-                if (action == 'switch')
-                    this.actionMoveWorkspace(newWs);
-                else
-                    this.actionMoveWindow(window, newWs);
-
-                if (!Main.overview.visible) {
-                    if (this._workspaceSwitcherPopup == null) {
-                        this._workspaceTracker.blockUpdates();
-                        this._workspaceSwitcherPopup = new FripperySwitcherPopup();
-                        this._workspaceSwitcherPopup.connect('destroy', () => {
-                            this._workspaceTracker.unblockUpdates();
-                            this._workspaceSwitcherPopup = null;
-                            this._isWorkspacePrepended = false;
-                        });
-                    }
-                    this._workspaceSwitcherPopup.display(newWs.index());
-                }
-            };
-
-        WindowManager.WindowManager.prototype._reset = function() {
-            Meta.keybindings_set_custom_handler('switch-to-workspace-left',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('switch-to-workspace-right',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('switch-to-workspace-up',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('switch-to-workspace-down',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('switch-to-workspace-last',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('switch-to-workspace-1',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-left',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-right',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-up',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-down',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-last',
-                        this._showWorkspaceSwitcher.bind(this));
-            Meta.keybindings_set_custom_handler('move-to-workspace-1',
-                        this._showWorkspaceSwitcher.bind(this));
-
-            this._workspaceSwitcherPopup = null;
-        };
-
-        WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
-            this._myShowWorkspaceSwitcher;
-
-        Main.wm._reset();
+            }
+        });
 
         this._bottomPanel = new BottomPanel();
         this._bottomPanel.relayout();
@@ -1625,15 +1482,12 @@ export default class BottomPanelExtension extends Extension {
         global.workspace_manager.override_workspace_layout(Meta.DisplayCorner.TOPLEFT,
                 false, 1, -1);
 
-        WindowManager.WindowManager.prototype._showWorkspaceSwitcher =
-            this._origShowWorkspaceSwitcher;
-
-        Main.wm._reset();
-
         if (this._bottomPanel) {
             this._bottomPanel.actor.destroy();
             this._bottomPanel = null;
         }
         extension_settings = null;
+        this._injectionManager.clear();
+        this._injectionManager = null;
     }
 };
