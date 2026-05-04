@@ -271,7 +271,17 @@ class ApplicationsMenuButton extends PanelMenu.Button {
 
         this._buildMenu();
 
-        this.connect('button-release-event', this._showDialog.bind(this));
+        this.clear_actions();
+        this._clickGesture = new Clutter.ClickGesture();
+        this._clickGesture.set_recognize_on_press(true);
+        this._clickGesture.connect('recognize', () => {
+            if (this._clickGesture.get_button() == Clutter.BUTTON_SECONDARY) {
+                this._showDialog();
+            } else {
+                this.menu?.toggle();
+            }
+        });
+        this.add_action(this._clickGesture);
 
         Main.layoutManager.connect('startup-complete',
                                      this._setKeybinding.bind(this));
@@ -287,25 +297,6 @@ class ApplicationsMenuButton extends PanelMenu.Button {
                                    Shell.ActionMode.NORMAL |
                                    Shell.ActionMode.OVERVIEW,
                                    () => this.menu.toggle());
-    }
-
-    vfunc_event(event) {
-        if ( event.type() == Clutter.EventType.BUTTON_RELEASE &&
-                event.get_button() == 3 ) {
-            return Clutter.EVENT_PROPAGATE;
-        }
-
-        if ( event.type() == Clutter.EventType.BUTTON_PRESS &&
-                event.get_button() == 3 ) {
-            return Clutter.EVENT_STOP;
-        }
-
-        if ( !this._settings.get_boolean(SETTINGS_SHOW_ICON) &&
-                !this._settings.get_boolean(SETTINGS_SHOW_TEXT) ) {
-            return Clutter.EVENT_STOP;
-        }
-
-        return PanelMenu.Button.prototype.vfunc_event.call(this, event);
     }
 
     _onDestroy() {
@@ -407,13 +398,9 @@ class ApplicationsMenuButton extends PanelMenu.Button {
         this._buildMenu();
     }
 
-    _showDialog(actor, event) {
-        if ( event.get_button() == 3 ) {
-            let applicationsMenuDialog = new ApplicationsMenuDialog(this);
-            applicationsMenuDialog.open();
-            return true;
-        }
-        return false;
+    _showDialog(actor) {
+        let applicationsMenuDialog = new ApplicationsMenuDialog(this);
+        applicationsMenuDialog.open();
     }
 
     _settingsChanged() {

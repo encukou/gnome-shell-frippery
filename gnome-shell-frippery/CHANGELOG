@@ -1,3 +1,17 @@
+20260325 - 50.0
+
+Update for GNOME 50.
+
+Applications Menu: replace ClickGesture signal handler on the panel
+button with one that recognises right-button click and displays the
+configuration dialog.
+
+20260118 - 49.1
+
+Bottom Panel: The extension failed to start when run over RDP because
+the bottom monitor was null in relayout().  Just ignoring the failure
+seems to allow things to sort themselves out eventually.
+
 20250917 - 49.0
 
 Update for GNOME 49.
