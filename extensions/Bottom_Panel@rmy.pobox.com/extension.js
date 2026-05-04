@@ -1322,6 +1322,11 @@ class BottomPanel {
     relayout() {
         let bottom = Main.layoutManager.bottomMonitor;
 
+        // When connecting via RDP we seem to start with null monitors.
+        // Do nothing and hope everything sorts itself out later.
+        if (!bottom)
+            return;
+
         let h = this.actor.get_theme_node().get_height();
         let active = global.workspace_manager.get_active_workspace_index();
         if ( !enable_panel || !show_panel[active] ) h = -h;
